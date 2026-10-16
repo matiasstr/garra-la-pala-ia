@@ -43,11 +43,15 @@ apps/web/                 (fase 2) web Jobright LATAM. Por ahora vacío.
 
 ```bash
 npm install            # una vez, en la raíz
-npm run typecheck      # tsc en core y extensión
-npm test               # vitest (todo el monorepo)
-npm run build          # genera apps/extension/dist
+npm run typecheck      # corre el script "typecheck" de cada paquete
+npm test               # vitest (todo el monorepo: packages/*/test y apps/*/test)
+npm run build          # corre el script "build" de cada paquete (la extensión queda en apps/extension/dist)
 npm run check          # las tres cosas juntas: correlo antes de cada PR
 ```
+
+Cada paquete define sus propios scripts `typecheck` y `build` en **su** `package.json`; la raíz los
+corre en todos los workspaces. Para sumar un paquete nuevo no hace falta tocar el `package.json` de la
+raíz.
 
 Para probar la extensión: `chrome://extensions` → Modo desarrollador → "Cargar descomprimida" →
 `apps/extension/dist`.
@@ -74,8 +78,18 @@ Dos agentes trabajan a la vez en este repo. Para no pisarnos:
    `origin/claude/awesome-tesla-eggzci`. Claude trabaja en ramas `claude/*`.
 2. **Un PR por tarea**, contra `main`, con título `[Astra] A1: ...`. En la descripción poné qué
    probaste y la salida de `npm run check`.
+   **Antes de correr el chequeo final, traé lo último de la base** (la base avanza mientras trabajás):
+   ```bash
+   git fetch origin
+   git merge origin/main     # o origin/claude/awesome-tesla-eggzci si main todavía no tiene la base
+   npm install               # por si cambiaron dependencias
+   npm run check
+   ```
+   Si `package-lock.json` choca: quedate con la versión de la base (`git checkout --theirs package-lock.json`)
+   y corré `npm install` para regenerarlo. Nunca lo edites a mano.
 3. **Solo tocás los archivos de tu tarea** (columna "Archivos" abajo). Si necesitás cambiar algo
-   fuera de eso, no lo cambies: explicalo en el PR y lo integra Claude.
+   fuera de eso, no lo cambies: explicalo en el PR y lo integra Claude. Eso incluye el `package.json`
+   de la raíz: los scripts de tu paquete van en el `package.json` de tu paquete.
 4. **Contratos compartidos** (`packages/core/src/types.ts`, `apps/extension/src/content/extractors/types.ts`,
    `packages/core/src/llm/errors.ts`): no los modifiques. Si hace falta, proponé el cambio en el PR
    (solo campos nuevos opcionales).
@@ -161,6 +175,8 @@ Si Codex se queda sin cupo, la extensión pasa a las APIs gratis.
   (id `codex-local`, label `Codex (local)`) que use `chrome.runtime.sendNativeMessage`. Errores →
   `ProviderError` con: `USAGE_LIMIT`→`RATE_LIMIT`, `NOT_INSTALLED`/`NOT_LOGGED_IN`→`NOT_AVAILABLE`,
   `TIMEOUT`→`TIMEOUT`, resto→`UNKNOWN`.
+- En `apps/codex-bridge/package.json` definí `typecheck` (y `build` si hace falta): `npm run check`
+  de la raíz los corre solo. Los tests en `apps/codex-bridge/test/*.test.ts` los toma vitest solo.
 - `apps/codex-bridge/README.md` en español: instalación paso a paso.
 - Tests (vitest, sin llamar a Codex de verdad): framing de mensajes, mapeo de errores, armado de los
   argumentos de `codex exec` (con el proceso mockeado).

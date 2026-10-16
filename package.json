@@ -10,11 +10,11 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "build": "npm run build -w @garra/extension",
+    "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev -w @garra/extension",
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "tsc -p packages/core && tsc -p apps/extension && tsc -p apps/extension/test",
+    "typecheck": "npm run typecheck --workspaces --if-present",
     "check": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
