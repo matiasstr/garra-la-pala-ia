@@ -37,6 +37,14 @@ describe('Greenhouse', () => {
     expect(job!.description).not.toContain('Short JSON-LD');
   });
 
+  it('en un dominio propio (sin extractor) encuentra la descripción con la heurística genérica', () => {
+    const { job, confident } = extractJob(document, 'https://careers.acme.com/jobs/senior-frontend');
+    expect(confident).toBe(true); // por el JSON-LD
+    expect(job!.description).toContain('merchant dashboard');
+    expect(job!.description).not.toContain('First Name');
+    expect(job!.source).toBe('generic');
+  });
+
   it('detecta los campos con su etiqueta, obligatoriedad y opciones', () => {
     const { fields } = scanFields(document);
     expect(fields.map((f) => [f.label, f.control, f.required])).toEqual([

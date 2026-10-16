@@ -25,9 +25,13 @@ export function canonicalJobUrl(url: string): string {
   return `${parsed.origin}${path}${query}`;
 }
 
+/** Descripción mínima para considerar que la oferta se leyó completa. */
+export const MIN_DESCRIPTION_CHARS = 300;
+
 /**
  * Une lo que devolvieron varias fuentes, en orden de prioridad:
- * para cada campo gana el primer valor no vacío.
+ * para cada campo gana el primer valor no vacío. Para la descripción gana
+ * la primera que esté completa (algunos JSON-LD traen solo un resumen).
  */
 export function mergeJobParts(
   url: string,
@@ -38,9 +42,15 @@ export function mergeJobParts(
     parts.map((p) => p.data?.[key]?.trim()).find((v) => v);
   const title = pick('title');
   if (!title) return null;
-  const description = pick('description') ?? '';
+  const descriptions = parts
+    .map((p) => ({ source: p.source, text: p.data?.description?.trim() ?? '' }))
+    .filter((d) => d.text);
+  const best =
+    descriptions.find((d) => d.text.length >= MIN_DESCRIPTION_CHARS) ??
+    [...descriptions].sort((a, b) => b.text.length - a.text.length)[0];
+  const description = best?.text ?? '';
   // La fuente es la que aportó la descripción (lo más difícil de leer bien).
-  const source = parts.find((p) => p.data?.description?.trim())?.source ?? parts.find((p) => p.data?.title)?.source ?? 'generic';
+  const source = best?.source ?? parts.find((p) => p.data?.title)?.source ?? 'generic';
   const job: JobPosting = {
     url,
     title,
@@ -55,9 +65,6 @@ export function mergeJobParts(
   if (employmentType) job.employmentType = employmentType;
   return job;
 }
-
-/** Descripción mínima para considerar que la oferta se leyó completa. */
-export const MIN_DESCRIPTION_CHARS = 300;
 
 export function rememberJob(recent: JobPosting[], job: JobPosting, max = 30): JobPosting[] {
   const key = canonicalJobUrl(job.url);

@@ -15,21 +15,39 @@ const DESCRIPTION_CANDIDATES = [
   'section',
 ].join(', ');
 
-/** El bloque con más texto que no sea el formulario: casi siempre es la descripción. */
-function bestDescription(doc: Document): string {
-  let best = '';
+/** Mucho texto, pocos links y nada de formulario: así se ve una descripción. */
+function blockScore(el: Element): number {
+  const length = (el.textContent ?? '').replace(/\s+/g, ' ').length;
+  if (length < 200 || length > 40_000) return -Infinity;
+  if (el.closest('nav, header, footer, form, [role="navigation"]')) return -Infinity;
+  const inputs = el.querySelectorAll('input:not([type="hidden"]), textarea, select').length;
+  let linkText = 0;
+  for (const a of el.querySelectorAll('a')) linkText += (a.textContent ?? '').length;
+  return length - inputs * 1500 - linkText * 2;
+}
+
+function bestIn(elements: Iterable<Element>): Element | undefined {
+  let best: Element | undefined;
   let bestScore = 0;
-  for (const el of doc.querySelectorAll(DESCRIPTION_CANDIDATES)) {
-    const text = textOf(el);
-    if (text.length < 200 || text.length > 40_000) continue;
-    const inputs = el.querySelectorAll('input:not([type="hidden"]), textarea, select').length;
-    const score = text.length - inputs * 1500;
+  for (const el of elements) {
+    const score = blockScore(el);
     if (score > bestScore) {
-      best = text;
+      best = el;
       bestScore = score;
     }
   }
   return best;
+}
+
+/** El bloque con más texto que no sea el formulario: casi siempre es la descripción. */
+function bestDescription(doc: Document): string {
+  // Primero los contenedores con nombres obvios; si no hay uno sustancial, cualquier bloque.
+  const named = bestIn(doc.querySelectorAll(DESCRIPTION_CANDIDATES));
+  const namedText = named ? textOf(named) : '';
+  if (namedText.length >= 400) return namedText;
+  const any = bestIn(doc.querySelectorAll('div, td'));
+  const anyText = any ? textOf(any) : '';
+  return anyText.length > namedText.length ? anyText : namedText;
 }
 
 /** "Data Analyst - Acme | Careers" -> "Acme" (heurística, solo como último recurso). */

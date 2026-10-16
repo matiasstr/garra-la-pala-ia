@@ -86,6 +86,20 @@ describe('ofertas', () => {
     expect(mergeJobParts('u', [{ source: 'generic', data: { company: 'X' } }])).toBeNull();
   });
 
+  it('para la descripción prefiere una completa antes que un resumen corto', () => {
+    const long = 'Responsabilidades del puesto. '.repeat(20);
+    const job = mergeJobParts('u', [
+      { source: 'jsonld', data: { title: 'Dev', description: 'Resumen corto.' } },
+      { source: 'generic', data: { description: long } },
+    ]);
+    expect(job).toMatchObject({ description: long.trim(), source: 'generic' });
+    const onlyShort = mergeJobParts('u', [
+      { source: 'jsonld', data: { title: 'Dev', description: 'Corto' } },
+      { source: 'generic', data: { description: 'Un poco más largo' } },
+    ]);
+    expect(onlyShort?.description).toBe('Un poco más largo');
+  });
+
   it('recuerda la oferta y la encuentra desde la página del formulario', () => {
     const now = 1_000_000;
     const job: JobPosting = {

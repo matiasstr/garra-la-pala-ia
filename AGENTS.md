@@ -229,15 +229,16 @@ export function upsertAnswer(
 
 ---
 
-## Qué está haciendo Claude (no lo dupliques)
+## Lo que ya hizo Claude (no lo dupliques)
 
-En la rama `claude/awesome-tesla-eggzci`:
+En la rama `claude/awesome-tesla-eggzci` (base para tus ramas hasta que se mergee a `main`):
 
 - `packages/core`: tipos, JSON-LD, clasificación de campos (es/en/pt), matching CV-oferta, armado
   del prompt, parser tolerante de respuestas, router con fallback y proveedor compatible con OpenAI
   (Groq, OpenRouter, Gemini, OpenAI).
 - `apps/extension`: manifest, content script (detección y llenado de campos, adjuntar CV, panel),
   extractores Greenhouse, Lever y genérico, background, opciones (perfil, CVs con pdf.js, APIs) y popup.
+- Tests: `packages/core/test/*` y `apps/extension/test/content.test.ts` (fixtures de Greenhouse y Lever).
 
-Próximo para Claude, después de esto: integrar A1 y A4 en el panel, widgets de dropdown custom
-(react-select, comboboxes de Workday) y formularios en varios pasos.
+Próximo para Claude: integrar A1 y A4 en el panel, widgets de dropdown custom (react-select,
+comboboxes de Workday) y formularios en varios pasos.
