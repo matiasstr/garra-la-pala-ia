@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "types": ["node", "chrome"] },
+  "include": ["src", "test", "../extension/src/lib/codex-bridge.ts"]
+}
