@@ -1,0 +1,62 @@
+<!doctype html>
+<!-- Fixture sintético con la estructura del formulario de Lever (jobs.lever.co/<empresa>/<id>/apply). -->
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Mercado Pago - Analista de Datos Sr</title>
+  </head>
+  <body>
+    <div class="posting-page">
+      <div class="posting-headline">
+        <h2>Analista de Datos Sr</h2>
+        <div class="posting-categories">
+          <div class="sort-by-time posting-category location">Ciudad de México</div>
+          <div class="sort-by-commitment posting-category commitment">Full-time</div>
+        </div>
+      </div>
+      <div class="section-wrapper page-full-width">
+        <form class="application-form" method="POST">
+          <div class="section page-centered application-form">
+            <h4>Enviá tu postulación</h4>
+            <ul>
+              <li class="application-question">
+                <div class="application-label">Currículum<span class="required">✱</span></div>
+                <div class="application-field"><input type="file" name="resume" /></div>
+              </li>
+              <li class="application-question">
+                <div class="application-label">Nombre completo<span class="required">✱</span></div>
+                <div class="application-field"><input type="text" name="name" required /></div>
+              </li>
+              <li class="application-question">
+                <div class="application-label">Correo electrónico<span class="required">✱</span></div>
+                <div class="application-field"><input type="email" name="email" required /></div>
+              </li>
+              <li class="application-question">
+                <div class="application-label">Teléfono</div>
+                <div class="application-field"><input type="text" name="phone" /></div>
+              </li>
+              <li class="application-question">
+                <div class="application-label">Empresa actual</div>
+                <div class="application-field"><input type="text" name="org" /></div>
+              </li>
+              <li class="application-question custom-question">
+                <div class="application-label">¿Por qué te interesa trabajar en Mercado Pago?</div>
+                <div class="application-field"><textarea name="cards[abc][field0]"></textarea></div>
+              </li>
+              <li class="application-question custom-question">
+                <div class="application-label">¿Tenés inglés avanzado?</div>
+                <div class="application-field">
+                  <ul>
+                    <li><label><input type="radio" name="cards[abc][field1]" value="Sí" /><span class="application-answer-alternative">Sí</span></label></li>
+                    <li><label><input type="radio" name="cards[abc][field1]" value="No" /><span class="application-answer-alternative">No</span></label></li>
+                  </ul>
+                </div>
+              </li>
+            </ul>
+          </div>
+          <button type="submit">Enviar postulación</button>
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

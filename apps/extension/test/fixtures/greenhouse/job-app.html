@@ -1,0 +1,115 @@
+<!doctype html>
+<!-- Fixture sintético con la estructura del Greenhouse clásico (boards.greenhouse.io/<empresa>/jobs/<id>). -->
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Job Application for Senior Frontend Engineer at Acme LATAM</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "JobPosting",
+        "title": "Senior Frontend Engineer",
+        "hiringOrganization": { "@type": "Organization", "name": "Acme LATAM" },
+        "jobLocation": { "@type": "Place", "address": { "addressLocality": "Buenos Aires", "addressCountry": "AR" } },
+        "employmentType": "FULL_TIME",
+        "description": "&lt;p&gt;Short JSON-LD description.&lt;/p&gt;"
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app_body">
+      <div id="header">
+        <h1 class="app-title">Senior Frontend Engineer</h1>
+        <span class="company-name">at Acme LATAM</span>
+        <div class="location">Buenos Aires, Argentina (Remote)</div>
+      </div>
+      <div id="content">
+        <p>Acme LATAM builds payment infrastructure for small businesses across Latin America.</p>
+        <p>We are looking for a Senior Frontend Engineer to lead our merchant dashboard.</p>
+        <h3>What you will do</h3>
+        <ul>
+          <li>Build features with React and TypeScript used by 200,000 merchants.</li>
+          <li>Work with Node.js services and GraphQL APIs.</li>
+          <li>Mentor other engineers and improve our testing culture with Jest and Cypress.</li>
+        </ul>
+        <h3>Requirements</h3>
+        <ul>
+          <li>5+ years of experience with JavaScript.</li>
+          <li>Experience with AWS is a plus.</li>
+          <li>Advanced English.</li>
+        </ul>
+      </div>
+      <div id="application">
+        <form id="application_form" action="#" method="post">
+          <div class="field">
+            <label for="first_name">First Name <span class="asterisk">*</span></label>
+            <input type="text" id="first_name" name="job_application[first_name]" aria-required="true" />
+          </div>
+          <div class="field">
+            <label for="last_name">Last Name <span class="asterisk">*</span></label>
+            <input type="text" id="last_name" name="job_application[last_name]" aria-required="true" />
+          </div>
+          <div class="field">
+            <label for="email">Email <span class="asterisk">*</span></label>
+            <input type="text" id="email" name="job_application[email]" aria-required="true" />
+          </div>
+          <div class="field">
+            <label for="phone">Phone</label>
+            <input type="text" id="phone" name="job_application[phone]" />
+          </div>
+          <div class="field">
+            <label>Resume/CV <span class="asterisk">*</span></label>
+            <div class="attach-or-paste">
+              <input type="file" id="resume" name="job_application[resume]" accept=".pdf,.doc,.docx,.txt,.rtf" style="display: none" />
+              <button type="button">Attach</button>
+            </div>
+          </div>
+          <div class="field">
+            <label for="question_1">LinkedIn Profile</label>
+            <input type="text" id="question_1" name="job_application[answers_attributes][0][text_value]" />
+          </div>
+          <div class="field">
+            <label for="question_2">Why do you want to work at Acme LATAM? <span class="asterisk">*</span></label>
+            <textarea id="question_2" name="job_application[answers_attributes][1][text_value]" maxlength="1500" required></textarea>
+          </div>
+          <div class="field">
+            <label for="question_3">How did you hear about this job?</label>
+            <select id="question_3" name="job_application[answers_attributes][2][answer_selected_options_attributes][0][question_option_id]">
+              <option value="">--</option>
+              <option value="11">LinkedIn</option>
+              <option value="12">Friend or colleague</option>
+              <option value="13">Company website</option>
+            </select>
+          </div>
+          <fieldset>
+            <legend>Will you now or in the future require visa sponsorship?</legend>
+            <label><input type="radio" name="sponsorship" value="yes" /> Yes</label>
+            <label><input type="radio" name="sponsorship" value="no" /> No</label>
+          </fieldset>
+          <div class="field">
+            <label for="years">Years of experience with React</label>
+            <input type="number" id="years" name="years" />
+          </div>
+          <div id="eeoc_fields">
+            <div class="field">
+              <label for="gender">Gender</label>
+              <select id="gender" name="job_application[gender]">
+                <option value="">Please select</option>
+                <option value="1">Male</option>
+                <option value="2">Female</option>
+                <option value="3">Decline to self-identify</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="display: none">
+            <label for="hidden_q">Hidden conditional question</label>
+            <input type="text" id="hidden_q" name="hidden_q" />
+          </div>
+          <label><input type="checkbox" name="consent" /> I agree to the privacy policy</label>
+          <input type="hidden" name="token" value="abc" />
+          <input type="submit" value="Submit Application" />
+        </form>
+      </div>
+    </div>
+  </body>
+</html>

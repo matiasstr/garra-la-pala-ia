@@ -7,7 +7,7 @@ export function textOf(el: Element | null | undefined): string {
   // jsdom no implementa innerText; en el navegador preserva saltos de línea.
   const raw = typeof html.innerText === 'string' && html.innerText ? html.innerText : (el.textContent ?? '');
   return raw
-    .replace(/[ \t ]+/g, ' ')
+    .replace(/[ \t\u00a0]+/g, ' ')
     .replace(/\s*\n\s*/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();

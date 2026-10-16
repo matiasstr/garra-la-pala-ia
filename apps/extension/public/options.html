@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Garra la Pala IA · Opciones</title>
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body>
+    <main>
+      <h1>🐾 Garra la Pala IA</h1>
+      <p class="lead">
+        Tus datos y CVs quedan guardados solo en este navegador. Se mandan únicamente a la IA que elijas
+        (Codex/ChatGPT pegando el prompt, o las APIs de abajo).
+      </p>
+
+      <section>
+        <h2>1. Tu perfil</h2>
+        <p class="muted">Lo que completes acá se usa tal cual en los formularios. Lo que falte, la IA lo saca del CV
+          (salvo salario, disponibilidad y permiso de trabajo, que nunca se inventan).</p>
+        <form id="profile" class="grid" autocomplete="off"></form>
+      </section>
+
+      <section>
+        <h2>2. Tus CVs</h2>
+        <p class="muted">Podés subir varios (ej. "CV Frontend" y "CV Data"): en cada oferta se elige el que más coincide.
+          PDF o TXT. Si tenés Word, guardalo como PDF.</p>
+        <label class="file">
+          <input id="cv-file" type="file" accept=".pdf,.txt,.md,application/pdf,text/plain" multiple />
+          <span>Subir CV</span>
+        </label>
+        <details>
+          <summary>O pegar el texto del CV</summary>
+          <input id="cv-paste-name" type="text" placeholder="Nombre (ej. CV Data)" />
+          <textarea id="cv-paste-text" rows="8" placeholder="Pegá el texto completo de tu CV"></textarea>
+          <button id="cv-paste-add" type="button">Agregar</button>
+        </details>
+        <ul id="cv-list" class="cards"></ul>
+      </section>
+
+      <section>
+        <h2>3. Inteligencia artificial</h2>
+        <div class="callout">
+          <strong>Modo Codex / ChatGPT (sin API key):</strong> en el panel tocás <em>Copiar prompt</em>, lo pegás en
+          Codex de escritorio o ChatGPT y pegás la respuesta. No hace falta configurar nada.
+        </div>
+        <h3>APIs gratis de respaldo</h3>
+        <p class="muted">Para cuando Codex se queda sin tokens. Se prueban en este orden: si una no tiene cupo, sigue la
+          siguiente. Las keys se sacan gratis con una cuenta en cada sitio.</p>
+        <ul id="provider-list" class="cards"></ul>
+        <div class="row">
+          <select id="provider-preset"></select>
+          <button id="provider-add" type="button">Agregar API</button>
+        </div>
+      </section>
+
+      <div id="toast" class="toast" hidden></div>
+    </main>
+    <script type="module" src="options.js"></script>
+  </body>
+</html>
