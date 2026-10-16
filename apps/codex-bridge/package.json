@@ -1,0 +1,16 @@
+{
+  "name": "@garra/codex-bridge",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Puente local de Chrome a Codex mediante Native Messaging.",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run --root ../.. apps/codex-bridge/test",
+    "check": "npm run typecheck && npm test && npm run build",
+    "install-host": "npm run build && node dist/install.cjs"
+  },
+  "devDependencies": { "@types/node": "^22.0.0" }
+}
