@@ -1,0 +1,10 @@
+{
+  "name": "@garra/core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lógica compartida (sin DOM ni APIs de Chrome): ofertas, CVs, matching, prompts y proveedores de IA.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

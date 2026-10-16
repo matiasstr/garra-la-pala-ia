@@ -1,0 +1,15 @@
+{
+  "name": "@garra/extension",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Extensión de Chrome (MV3) que completa postulaciones fuera de LinkedIn.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch"
+  },
+  "dependencies": {
+    "@garra/core": "*",
+    "pdfjs-dist": "^6.3.289"
+  }
+}
