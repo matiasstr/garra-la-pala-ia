@@ -90,6 +90,16 @@ describe('completeWithFallback', () => {
     expect(result.providerId).toBe('b');
   });
 
+  it('corta por timeout aunque el proveedor ignore la señal, y sigue con el próximo', async () => {
+    const stuck = fakeProvider('codex-local', () => new Promise<string>(() => {}));
+    const next = fakeProvider('groq', () => Promise.resolve('ok'));
+    const result = await completeWithFallback([stuck, next], prompt, {
+      timeoutFor: (p) => (p.id === 'codex-local' ? 30 : undefined),
+    });
+    expect(result.providerId).toBe('groq');
+    expect(result.attempts[0]).toMatchObject({ providerId: 'codex-local', ok: false, code: 'TIMEOUT', error: 'tardó demasiado' });
+  });
+
   it('si todos fallan tira un error con el detalle', async () => {
     const bad = fakeProvider('a', () => Promise.reject(new Error('boom')));
     await expect(completeWithFallback([bad], prompt)).rejects.toBeInstanceOf(AllProvidersFailedError);

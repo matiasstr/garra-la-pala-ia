@@ -32,7 +32,28 @@ export interface FallbackOptions {
   /** Si devuelve un texto, la respuesta no sirve y se prueba el siguiente proveedor. */
   validate?: (text: string) => string | undefined;
   timeoutMs?: number;
+  /** Timeout propio de un proveedor (ej. Codex local, que razona antes de responder). */
+  timeoutFor?: (provider: LlmProvider) => number | undefined;
   signal?: AbortSignal;
+}
+
+/** Corta la espera cuando se aborta, aunque el proveedor ignore la señal. */
+function abortable<T>(promise: Promise<T>, signal: AbortSignal): Promise<T> {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = () => reject(signal.reason);
+    signal.addEventListener('abort', onAbort, { once: true });
+    promise.then(
+      (value) => {
+        signal.removeEventListener('abort', onAbort);
+        resolve(value);
+      },
+      (err: unknown) => {
+        signal.removeEventListener('abort', onAbort);
+        reject(err);
+      },
+    );
+  });
 }
 
 /**
@@ -48,9 +69,11 @@ export async function completeWithFallback(
   for (const provider of providers) {
     if (opts.signal?.aborted) break;
     const started = Date.now();
-    const signals = [AbortSignal.timeout(opts.timeoutMs ?? 90_000), opts.signal].filter((s): s is AbortSignal => !!s);
+    const timeout = opts.timeoutFor?.(provider) ?? opts.timeoutMs ?? 90_000;
+    const signals = [AbortSignal.timeout(timeout), opts.signal].filter((s): s is AbortSignal => !!s);
+    const signal = AbortSignal.any(signals);
     try {
-      const text = await provider.complete(prompt, AbortSignal.any(signals));
+      const text = await abortable(provider.complete(prompt, signal), signal);
       const invalid = opts.validate?.(text);
       if (invalid) throw new ProviderError(invalid, provider.id, 'BAD_RESPONSE');
       attempts.push({ providerId: provider.id, label: provider.label, ok: true, ms: Date.now() - started });
