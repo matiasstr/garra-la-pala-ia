@@ -44,6 +44,27 @@
           <strong>Modo Codex / ChatGPT (sin API key):</strong> en el panel tocás <em>Copiar prompt</em>, lo pegás en
           Codex de escritorio o ChatGPT y pegás la respuesta. No hace falta configurar nada.
         </div>
+        <h3>Codex local (sin copiar y pegar)</h3>
+        <p class="muted">Si tenés Codex instalado y con sesión iniciada (<code>codex login</code>), la extensión le manda
+          el prompt sola y usa tu cuenta de ChatGPT, sin API key. Si Codex se queda sin cupo, sigue con las APIs de abajo.</p>
+        <ol class="steps">
+          <li>Instalá el puente una vez, desde la carpeta del proyecto:
+            <div class="row"><code id="codex-install-cmd"></code><button id="codex-copy-cmd" type="button">Copiar</button></div>
+          </li>
+          <li>Tocá <strong>Probar conexión</strong> y activalo.</li>
+        </ol>
+        <div class="card">
+          <div class="row">
+            <label class="check"><input id="codex-enabled" type="checkbox" /> Usar Codex local antes que las APIs</label>
+            <button id="codex-ping" type="button">Probar conexión</button>
+          </div>
+          <div class="fields">
+            <label>Modelo (opcional)<input id="codex-model" type="text" placeholder="el que tengas configurado en Codex" /></label>
+            <label>Tiempo máximo (segundos)<input id="codex-timeout" type="text" inputmode="numeric" /></label>
+          </div>
+          <div id="codex-result" class="result"></div>
+        </div>
+
         <h3>APIs gratis de respaldo</h3>
         <p class="muted">Para cuando Codex se queda sin tokens. Se prueban en este orden: si una no tiene cupo, sigue la
           siguiente. Las keys se sacan gratis con una cuenta en cada sitio.</p>

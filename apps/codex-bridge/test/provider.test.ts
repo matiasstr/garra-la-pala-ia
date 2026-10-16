@@ -18,6 +18,13 @@ describe('proveedor Codex local', () => {
     expect(await provider.complete(prompt)).toBe('{"answers":[]}');
     expect(send).toHaveBeenCalledWith('com.garra.codex_bridge', { type: 'complete', ...prompt, timeoutMs: 120000 }, expect.any(Function));
   });
+  it('manda el modelo y el tiempo de espera configurados (acotado al máximo del host)', async () => {
+    const send = mockChrome({ ok: true, text: 'ok' });
+    await createCodexBridgeProvider({ model: ' gpt-6.1 ', timeoutMs: 999_999 }).complete(prompt);
+    expect(send).toHaveBeenCalledWith('com.garra.codex_bridge', { type: 'complete', ...prompt, timeoutMs: 300000, model: 'gpt-6.1' }, expect.any(Function));
+    await createCodexBridgeProvider({ model: '  ', timeoutMs: 90_000 }).complete(prompt);
+    expect(send).toHaveBeenLastCalledWith('com.garra.codex_bridge', { type: 'complete', ...prompt, timeoutMs: 90000 }, expect.any(Function));
+  });
   it.each([
     ['USAGE_LIMIT', 'RATE_LIMIT'], ['NOT_INSTALLED', 'NOT_AVAILABLE'], ['NOT_LOGGED_IN', 'NOT_AVAILABLE'],
     ['TIMEOUT', 'TIMEOUT'], ['UNKNOWN', 'UNKNOWN'], ['NEW_CODE', 'UNKNOWN'],

@@ -5,7 +5,13 @@ import type { Attempt, ChatPrompt, ProviderConfig } from '@garra/core';
 export type BackgroundRequest =
   | { type: 'answer-with-api'; prompt: ChatPrompt; questionIds: string[] }
   | { type: 'test-provider'; config: ProviderConfig }
+  | { type: 'codex-ping' }
   | { type: 'open-options' };
+
+export interface CodexPingResult {
+  version: string;
+  codexVersion?: string;
+}
 
 export interface AnswerWithApiResult {
   text: string;

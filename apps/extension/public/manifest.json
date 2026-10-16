@@ -5,7 +5,7 @@
   "version": "0.1.0",
   "description": "Completa postulaciones fuera de LinkedIn con tu CV: datos, adjunto y respuestas redactadas con Codex/ChatGPT o APIs gratis.",
   "minimum_chrome_version": "120",
-  "permissions": ["storage", "unlimitedStorage", "clipboardWrite"],
+  "permissions": ["storage", "unlimitedStorage", "clipboardWrite", "nativeMessaging"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "background.js",

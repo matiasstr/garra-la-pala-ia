@@ -11,13 +11,14 @@ function note(text: string): void {
 }
 
 async function renderStats(): Promise<void> {
-  const { profile, cvs, providers } = await getState('profile', 'cvs', 'providers');
+  const { profile, cvs, providers, codex } = await getState('profile', 'cvs', 'providers', 'codex');
   const filled = Object.values(profile).filter((v) => v?.trim()).length;
   const apis = providers.filter(isProviderUsable).length;
+  const ai = [codex.enabled ? 'Codex local' : 'Codex/ChatGPT (copiar y pegar)', ...(apis ? [`${apis} API(s) de respaldo`] : [])];
   const items = [
     `Perfil: ${filled ? `${filled} datos cargados` : 'vacío'}`,
     `CVs: ${cvs.length || 'ninguno'}`,
-    `IA: Codex/ChatGPT (copiar y pegar)${apis ? ` + ${apis} API(s) de respaldo` : ''}`,
+    `IA: ${ai.join(' + ')}`,
   ];
   $('#stats').replaceChildren(...items.map((text) => Object.assign(document.createElement('li'), { textContent: text })));
 }

@@ -91,6 +91,8 @@ export class Panel {
   private readonly tokens = h('div', { class: 'muted' });
   private readonly pasteBox = h('textarea', { placeholder: 'Pegá acá la respuesta de Codex o ChatGPT (el JSON)' });
   private readonly status = h('div', { class: 'status' });
+  private readonly orDivider = h('div', { class: 'or' }, '— si Codex se quedó sin tokens —');
+  private autoButton!: HTMLButtonElement;
   private readonly buttons: HTMLButtonElement[] = [];
 
   constructor(private readonly handlers: PanelHandlers) {
@@ -126,8 +128,8 @@ export class Panel {
         this.tokens,
         this.pasteBox,
         button('Aplicar respuesta pegada', () => handlers.onApplyPasted(this.pasteBox.value)),
-        h('div', { class: 'or' }, '— si Codex se quedó sin tokens —'),
-        button('⚡ Responder con API gratis', () => handlers.onAnswerWithApi()),
+        this.orDivider,
+        (this.autoButton = button('⚡ Responder con API gratis', () => handlers.onAnswerWithApi())),
       ),
       this.status,
       h(
@@ -192,6 +194,12 @@ export class Panel {
       h('div', { class: 'chips' }, ...matched.slice(0, 12).map((m) => h('span', { class: 'chip' }, m))),
       h('div', { class: 'chips' }, ...missing.slice(0, 12).map((m) => h('span', { class: 'chip missing' }, m))),
     );
+  }
+
+  /** Con Codex local activo, el botón automático prueba Codex primero y después las APIs. */
+  setAutoMode(codexLocal: boolean): void {
+    this.autoButton.textContent = codexLocal ? '⚡ Responder automático (Codex local → APIs)' : '⚡ Responder con API gratis';
+    this.orDivider.textContent = codexLocal ? '— o sin copiar y pegar —' : '— si Codex se quedó sin tokens —';
   }
 
   setTokens(text: string): void {

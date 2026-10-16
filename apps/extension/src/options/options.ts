@@ -8,8 +8,8 @@ import {
   type ProviderPresetId,
 } from '@garra/core';
 import { bytesToBase64 } from '../lib/base64';
-import { sendToBackground } from '../lib/messages';
-import { getState, setState } from '../lib/storage';
+import { sendToBackground, type CodexPingResult } from '../lib/messages';
+import { DEFAULT_CODEX_SETTINGS, getState, setState } from '../lib/storage';
 import { pdfToText } from './pdf';
 
 const $ = <T extends HTMLElement>(selector: string) => document.querySelector<T>(selector)!;
@@ -270,6 +270,44 @@ async function renderProviders(): Promise<void> {
   }
 }
 
+// ---------- Codex local ----------
+
+async function renderCodex(): Promise<void> {
+  const { codex } = await getState('codex');
+  const command = `npm run install-host -w @garra/codex-bridge -- --extension-id ${chrome.runtime.id}`;
+  $('#codex-install-cmd').textContent = command;
+  $('#codex-copy-cmd').addEventListener('click', () => {
+    void navigator.clipboard.writeText(command).then(() => toast('Comando copiado'));
+  });
+
+  const enabled = $<HTMLInputElement>('#codex-enabled');
+  const model = $<HTMLInputElement>('#codex-model');
+  const timeout = $<HTMLInputElement>('#codex-timeout');
+  enabled.checked = codex.enabled;
+  model.value = codex.model;
+  timeout.value = String(Math.round(codex.timeoutMs / 1000));
+
+  const save = async () => {
+    const seconds = Number.parseInt(timeout.value, 10);
+    const timeoutMs = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 30), 300) * 1000 : DEFAULT_CODEX_SETTINGS.timeoutMs;
+    timeout.value = String(timeoutMs / 1000);
+    await setState({ codex: { enabled: enabled.checked, model: model.value.trim(), timeoutMs } });
+    toast('Codex local guardado');
+  };
+  for (const input of [enabled, model, timeout]) input.addEventListener('change', () => void save());
+
+  const result = $('#codex-result');
+  $('#codex-ping').addEventListener('click', async () => {
+    result.className = 'result';
+    result.textContent = 'Probando...';
+    const response = await sendToBackground<CodexPingResult>({ type: 'codex-ping' });
+    result.className = `result ${response.ok ? 'ok' : 'error'}`;
+    result.textContent = response.ok
+      ? `Conectado: puente ${response.data.version}, Codex ${response.data.codexVersion ?? '?'}. Si nunca iniciaste sesión, corré "codex login".`
+      : response.error;
+  });
+}
+
 // ---------- Inicio ----------
 
 function init(): void {
@@ -304,6 +342,7 @@ function init(): void {
 
   void renderProfile();
   void renderCvs();
+  void renderCodex();
   void renderProviders();
 }
 

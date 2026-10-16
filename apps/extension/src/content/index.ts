@@ -35,9 +35,10 @@ interface Context {
   profile: CandidateProfile;
   cvs: CvDocument[];
   selectedCvId?: string;
+  codexLocal: boolean;
 }
 
-const ctx: Context = { job: null, confident: false, descriptionEdited: false, profile: {}, cvs: [] };
+const ctx: Context = { job: null, confident: false, descriptionEdited: false, profile: {}, cvs: [], codexLocal: false };
 let panel: Panel | null = null;
 
 function getPanel(): Panel {
@@ -119,12 +120,14 @@ function render(): void {
   );
   const match = ranked.find((r) => r.cv.id === selected?.id)?.match;
   p.setMatch(match?.score ?? null, match?.matched ?? [], match?.missing ?? []);
+  p.setAutoMode(ctx.codexLocal);
 }
 
 async function loadUserData(): Promise<void> {
-  const { profile, cvs } = await getState('profile', 'cvs');
+  const { profile, cvs, codex } = await getState('profile', 'cvs', 'codex');
   ctx.profile = profile;
   ctx.cvs = cvs;
+  ctx.codexLocal = codex.enabled;
 }
 
 // ---------- Acciones ----------
@@ -256,7 +259,12 @@ async function answerWithApi(): Promise<void> {
     return;
   }
   p.setBusy(true);
-  p.log('info', `Consultando las APIs (${prepared.ids.length} pregunta(s))...`);
+  p.log(
+    'info',
+    ctx.codexLocal
+      ? `Consultando a Codex local (${prepared.ids.length} pregunta(s)). Puede tardar un par de minutos...`
+      : `Consultando las APIs (${prepared.ids.length} pregunta(s))...`,
+  );
   try {
     const result = await sendToBackground<AnswerWithApiResult>({
       type: 'answer-with-api',
@@ -350,7 +358,7 @@ async function main(): Promise<void> {
     return false;
   });
   chrome.storage.onChanged.addListener((changes, area) => {
-    if (area !== 'local' || !panel?.isOpen || !(changes.profile || changes.cvs)) return;
+    if (area !== 'local' || !panel?.isOpen || !(changes.profile || changes.cvs || changes.codex)) return;
     void loadUserData().then(render);
   });
 

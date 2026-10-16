@@ -52,6 +52,9 @@ details button { margin-top: 8px; }
 .result.ok { color: #15803d; } .result.error { color: #b91c1c; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #111827; color: #fff; padding: 8px 14px; border-radius: 8px; font-size: 13px; }
 a { color: var(--accent); }
+code { background: #f1f5f9; border-radius: 6px; padding: 3px 6px; font-size: 12px; word-break: break-all; }
+.steps { margin: 8px 0 12px; padding-left: 20px; }
+.steps li { margin-bottom: 6px; }
 
 /* Popup */
 body.popup { width: 300px; }
