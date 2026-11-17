@@ -1,0 +1,239 @@
+:root {
+  --fondo: #f6f7f9;
+  --superficie: #ffffff;
+  --texto: #1b1f24;
+  --texto-suave: #5b6470;
+  --borde: #d5dae1;
+  --acento: #0f6e6e;
+  --acento-suave: #e3f2f1;
+  --rojo: #c62828;
+  --azul: #1557b0;
+  --pieza: #ffffff;
+  --pieza-borde: #8a94a3;
+  /* Zona de historia clínica: color propio para que nunca se confunda con la ficha. */
+  --zona-clinica: #f3effa;
+  --zona-clinica-borde: #7b5ea7;
+  --radio: 10px;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --fondo: #111418;
+    --superficie: #1a1f25;
+    --texto: #e8ebef;
+    --texto-suave: #9aa4b1;
+    --borde: #2e3640;
+    --acento: #4fb3b0;
+    --acento-suave: #173a3a;
+    --rojo: #ef6b6b;
+    --azul: #6aa5ff;
+    --pieza: #222932;
+    --pieza-borde: #7d8896;
+    --zona-clinica: #231d2e;
+    --zona-clinica-borde: #a48bd0;
+    color-scheme: dark;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--fondo);
+  color: var(--texto);
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  line-height: 1.5;
+  -webkit-tap-highlight-color: transparent;
+}
+
+a {
+  color: var(--acento);
+}
+
+.contenedor {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+}
+
+.encabezado {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.encabezado h1 {
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.suave {
+  color: var(--texto-suave);
+}
+
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 20px;
+}
+
+.zona-clinica {
+  background: var(--zona-clinica);
+  border: 2px solid var(--zona-clinica-borde);
+  border-radius: var(--radio);
+  padding: 20px;
+}
+
+.etiqueta-zona {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--zona-clinica-borde);
+  margin-bottom: 12px;
+}
+
+.grilla-modulos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.grilla-modulos h2 {
+  font-size: 1rem;
+  margin: 0 0 4px;
+}
+
+.grilla-modulos p {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+/* Barra de herramientas del odontograma: botones grandes para usar con el dedo. */
+.herramientas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.boton {
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--borde);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 0.92rem;
+  cursor: pointer;
+}
+
+.boton[aria-pressed='true'] {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  font-weight: 600;
+}
+
+.boton.rojo[aria-pressed='true'] {
+  border-color: var(--rojo);
+  color: var(--rojo);
+  background: transparent;
+}
+
+.boton.azul[aria-pressed='true'] {
+  border-color: var(--azul);
+  color: var(--azul);
+  background: transparent;
+}
+
+.boton:focus-visible {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.boton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* En SVG el contorno del navegador se ve mal: el foco se marca con el trazo. */
+.cara:focus {
+  outline: none;
+}
+
+.cara:focus-visible {
+  stroke: var(--acento);
+  stroke-width: 3;
+}
+
+.grupo-herramientas {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.grupo-herramientas > span {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.odontograma {
+  width: 100%;
+  /* Pensado para tablet: en un celular se desplaza en horizontal en vez de achicarse. */
+  min-width: 720px;
+  height: auto;
+  display: block;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.cara {
+  cursor: pointer;
+  stroke: var(--pieza-borde);
+  stroke-width: 1;
+}
+
+.lista-cambios {
+  margin: 12px 0 0;
+  padding-left: 20px;
+  font-size: 0.92rem;
+}
+
+.leyenda {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 0.88rem;
+  margin-top: 8px;
+}
+
+.punto {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.desplazable {
+  overflow-x: auto;
+}
