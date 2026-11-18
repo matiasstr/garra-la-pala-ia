@@ -1,29 +1,20 @@
 import { randomUUID } from 'node:crypto';
 import { asc, desc, eq } from 'drizzle-orm';
-import type { PgDatabase, PgQueryResultHKT } from 'drizzle-orm/pg-core';
 import * as schema from '../../db/schema';
+import type { BaseDeDatos } from '../../db/tipos';
 import { HASH_GENESIS, calcularHashRegistro, verificarCadena, type ResultadoVerificacion } from '../../domain/firma/encadenamiento';
 import { calcularOdontograma, validarMarca, type MarcaNueva, type MarcaOdontograma } from '../../domain/odontograma/estado';
 import { puede, puedeEnmendar, puedeFirmarRegistroClinico, type UsuarioConRoles } from '../../domain/permisos/permisos';
 import type { Especialidad } from '../../domain/permisos/roles';
+import { ErrorDePermiso, ErrorDeValidacion } from '../errores';
+
+export { ErrorDePermiso, ErrorDeValidacion };
+export type { BaseDeDatos };
 
 const { auditoriaAccesos, historiasClinicas, marcasOdontograma, registrosClinicos } = schema;
 
-/** Sirve tanto para node-postgres (producción) como para PGlite (tests). */
-export type BaseDeDatos = PgDatabase<PgQueryResultHKT, typeof schema>;
 export type TipoRegistro = (typeof schema.tipoRegistroEnum.enumValues)[number];
 export type RegistroClinico = typeof registrosClinicos.$inferSelect;
-
-export class ErrorDePermiso extends Error {
-  override name = 'ErrorDePermiso';
-}
-
-export class ErrorDeValidacion extends Error {
-  override name = 'ErrorDeValidacion';
-  constructor(readonly errores: string[]) {
-    super(errores.join(' '));
-  }
-}
 
 async function auditar(
   db: Pick<BaseDeDatos, 'insert'>,

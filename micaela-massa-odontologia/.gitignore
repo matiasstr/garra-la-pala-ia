@@ -8,3 +8,6 @@ next-env.d.ts
 .env.local
 .env.*.local
 .DS_Store
+
+# Base local y archivos de desarrollo
+.data/

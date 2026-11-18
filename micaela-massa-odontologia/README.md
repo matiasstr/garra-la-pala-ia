@@ -2,7 +2,7 @@
 
 Sistema para el consultorio: historia clínica digital con validez legal, odontograma, roles, agenda y seguimiento de pacientes.
 
-- **Versión 1 (en construcción):** historia clínica y odontograma, firma de cada evolución, roles, agenda básica y tablero de pendientes.
+- **Versión 1 (en construcción):** historia clínica y odontograma, firma de cada evolución, roles, ficha del paciente, agenda y tablero de pendientes.
 - **Versión 2:** WhatsApp e Instagram, recordatorios automáticos, facturación ARCA y liquidación a OSDE, métricas.
 
 ## Estado actual
@@ -16,9 +16,12 @@ Sistema para el consultorio: historia clínica digital con validez legal, odonto
 | Odontograma: interfaz táctil | Demo en `/odontograma` (no guarda) |
 | Identificación de pacientes (duplicados, homónimos, menores) | Lista, con tests |
 | Reglas de seguimiento (pendientes y alertas de 48 horas) | Listas, con tests |
-| Login con verificación en dos pasos | Por hacer |
-| Pantallas de agenda, ficha e historia clínica | Por hacer |
-| Almacenamiento de adjuntos con Object Lock | Por hacer |
+| **Pacientes:** búsqueda sin tildes, alta con aviso de duplicados y homónimos, ficha, foto, coberturas, notas | Lista, con tests y prueba en navegador |
+| **Agenda:** día por profesional, estados con historial, superposiciones, reprogramar, recordatorio por WhatsApp | Lista, con tests y prueba en navegador |
+| Tablero de pendientes (pantalla) | Por hacer |
+| Historia clínica conectada (evoluciones firmadas, odontograma que guarda) | Por hacer |
+| Login con verificación en dos pasos | Por hacer: hoy hay un selector de usuario de prueba |
+| Almacenamiento de archivos en la nube con Object Lock | Por hacer: hoy se guardan en disco local |
 
 ## Stack
 
@@ -44,7 +47,21 @@ npm test
 npm run dev
 ```
 
-La demo del odontograma queda en http://localhost:3000/odontograma.
+Abre en http://localhost:3000. Sin `DATABASE_URL`, la app usa una base PostgreSQL embebida en `.data/` y la carga con pacientes, turnos y usuarios inventados. Arriba a la derecha se elige con qué usuario de prueba navegar (secretaria, odontóloga o endodoncista) para ver qué permite cada rol.
+
+Para volver a los datos de prueba del día:
+
+```bash
+npm run db:reset
+```
+
+Para mostrar una demo con la versión compilada (más rápida), en Linux o macOS:
+
+```bash
+npm run build && MODO_DESARROLLO=1 npm start
+```
+
+`MODO_DESARROLLO=1` activa los datos y usuarios de prueba: nunca usarlo con pacientes reales.
 
 Para usar una base real, copiar `.env.example` a `.env.local`, completar `DATABASE_URL` y aplicar las migraciones:
 
@@ -63,10 +80,12 @@ src/
     pacientes/       Duplicados, homónimos, edad y consentimiento de menores
     agenda/          Estados de turno y recordatorio por WhatsApp con un clic
     seguimiento/     Reglas del tablero de pendientes
-  db/                Esquema Drizzle y conexión
-  server/hc/         Firmar registros, abrir la HC (auditado), verificar la cadena
-  components/        Interfaz (odontograma)
-  app/               Páginas de Next.js
+  lib/               Fechas y horas en hora argentina
+  db/                Esquema Drizzle, conexión y datos de prueba
+  server/            Pacientes, agenda, archivos, usuarios y sesión (con permisos)
+    hc/              Firmar registros, abrir la HC (auditado), verificar la cadena
+  components/        Interfaz (odontograma y componentes comunes)
+  app/(sistema)/     Pantallas: agenda, pacientes, ficha, odontograma
 drizzle/             Migraciones SQL (0001 = triggers de inalterabilidad)
 tests/db/            Tests contra Postgres en memoria
 docs/                Arquitectura, modelo de datos y requisitos legales

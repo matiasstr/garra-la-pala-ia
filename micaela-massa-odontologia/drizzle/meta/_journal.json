@@ -15,6 +15,13 @@
       "when": 1794941487246,
       "tag": "0001_inalterabilidad",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794960837243,
+      "tag": "0002_busqueda_pacientes",
+      "breakpoints": true
     }
   ]
 }

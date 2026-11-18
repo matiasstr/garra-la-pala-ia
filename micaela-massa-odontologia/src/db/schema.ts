@@ -71,6 +71,16 @@ const id = () => uuid('id').primaryKey().defaultRandom();
 const creadoEn = () => timestamp('creado_en', { withTimezone: true }).notNull().defaultNow();
 const fechaHora = (nombre: string) => timestamp(nombre, { withTimezone: true });
 
+/**
+ * Normalización en SQL equivalente a `normalizarTexto` (src/domain/pacientes):
+ * sin tildes, en minúsculas y solo letras y números. Son funciones inmutables,
+ * así que sirve para columnas generadas que la aplicación nunca escribe.
+ */
+const CON_TILDE = 'ÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇ';
+const SIN_TILDE = 'AAAAAEEEEIIIIOOOOOUUUUNC';
+const normalizarSql = (expresion: string) =>
+  `btrim(regexp_replace(lower(translate(${expresion}, '${CON_TILDE}${CON_TILDE.toLowerCase()}', '${SIN_TILDE}${SIN_TILDE.toLowerCase()}')), '[^a-z0-9]+', ' ', 'g'))`;
+
 /** Piezas válidas en notación FDI (permanentes 11-48, temporales 51-85). */
 const CHECK_PIEZA_FDI = (columna: string) =>
   sql.raw(`(${columna} / 10 between 1 and 4 and ${columna} % 10 between 1 and 8) or (${columna} / 10 between 5 and 8 and ${columna} % 10 between 1 and 5)`);
@@ -133,8 +143,16 @@ export const pacientes = pgTable(
     activo: boolean('activo').notNull().default(true),
     creadoEn: creadoEn(),
     creadoPor: uuid('creado_por').notNull().references(() => usuarios.id),
+    /** "perez juan": detecta homónimos aunque se cargue con o sin tildes. La calcula la base. */
+    nombreNormalizado: text('nombre_normalizado').generatedAlwaysAs(sql.raw(normalizarSql(`apellido || ' ' || nombre`))),
+    /** Nombre normalizado + documento: lo que se busca desde la recepción. La calcula la base. */
+    textoBusqueda: text('texto_busqueda').generatedAlwaysAs(sql.raw(`${normalizarSql(`apellido || ' ' || nombre`)} || ' ' || numero_documento`)),
   },
-  (t) => [unique('pacientes_documento_unico').on(t.tipoDocumento, t.numeroDocumento), index('pacientes_apellido_nombre_idx').on(t.apellido, t.nombre)],
+  (t) => [
+    unique('pacientes_documento_unico').on(t.tipoDocumento, t.numeroDocumento),
+    index('pacientes_apellido_nombre_idx').on(t.apellido, t.nombre),
+    index('pacientes_nombre_normalizado_idx').on(t.nombreNormalizado),
+  ],
 );
 
 export const financiadores = pgTable('financiadores', {

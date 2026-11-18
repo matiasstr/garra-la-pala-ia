@@ -1,5 +1,4 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { EditorOdontograma } from '@/components/odontograma/EditorOdontograma';
 
 export const metadata: Metadata = {
@@ -11,7 +10,7 @@ export default function PaginaOdontograma() {
     <main className="contenedor">
       <header className="encabezado">
         <h1>Odontograma</h1>
-        <Link href="/">Volver al inicio</Link>
+        <span className="suave">Demo: los cambios no se guardan</span>
       </header>
       <section className="zona-clinica" aria-label="Historia clínica">
         <div className="etiqueta-zona">

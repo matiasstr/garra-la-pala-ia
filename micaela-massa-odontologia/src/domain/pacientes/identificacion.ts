@@ -68,12 +68,18 @@ export function buscarCoincidencias(nuevo: DatosIdentificacion, existentes: read
   return coincidencias.sort((a, b) => orden[a.motivo] - orden[b.motivo]);
 }
 
-/** Edad en años cumplidos a una fecha. */
-export function edad(fechaNacimiento: string, hoy: Date = new Date()): number {
+/**
+ * Edad en años cumplidos a una fecha. `hoy` puede ser un `Date` (fecha local)
+ * o una fecha YYYY-MM-DD, que es lo que conviene en el servidor.
+ */
+export function edad(fechaNacimiento: string, hoy: Date | string = new Date()): number {
   const [anio, mes, dia] = fechaNacimiento.split('-').map(Number);
   if (!anio || !mes || !dia) throw new RangeError(`Fecha inválida: ${fechaNacimiento}`);
-  let anios = hoy.getFullYear() - anio;
-  const cumpleEsteAnio = hoy.getMonth() + 1 > mes || (hoy.getMonth() + 1 === mes && hoy.getDate() >= dia);
+  const [hoyAnio, hoyMes, hoyDia] =
+    typeof hoy === 'string' ? hoy.split('-').map(Number) : [hoy.getFullYear(), hoy.getMonth() + 1, hoy.getDate()];
+  if (!hoyAnio || !hoyMes || !hoyDia) throw new RangeError(`Fecha inválida: ${String(hoy)}`);
+  let anios = hoyAnio - anio;
+  const cumpleEsteAnio = hoyMes > mes || (hoyMes === mes && hoyDia >= dia);
   if (!cumpleEsteAnio) anios -= 1;
   return anios;
 }
