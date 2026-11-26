@@ -25,7 +25,10 @@ erDiagram
   plan_prestaciones }o--|| nomenclador_prestaciones : codigo
   presupuestos ||--o{ presupuesto_items : incluye
 
+  pacientes ||--o{ indicaciones_regreso : "¿cuándo debería volver? 🔒"
+  turnos |o--o{ indicaciones_regreso : "se indicó en"
   pacientes ||--o{ pendientes : seguimiento
+  indicaciones_regreso |o--o{ pendientes : origina
   pendientes ||--o{ pendiente_acciones : "qué se hizo 🔒"
 ```
 
@@ -36,7 +39,7 @@ erDiagram
 | Ficha del paciente | `pacientes`, `paciente_coberturas`, `notas_administrativas`, adjuntos administrativos | Secretarias y profesionales |
 | Alertas médicas | `alertas_medicas` | Las cargan profesionales; las ven todos |
 | Historia clínica | `historias_clinicas`, `registros_clinicos`, `marcas_odontograma`, `borradores_clinicos`, adjuntos clínicos | Solo profesionales |
-| Agenda y seguimiento | `turnos`, `turno_eventos`, `pendientes`, `pendiente_acciones` | Secretarias y profesionales |
+| Agenda y seguimiento | `turnos`, `turno_eventos`, `indicaciones_regreso`, `pendientes`, `pendiente_acciones` | Secretarias y profesionales |
 | Plan y presupuestos | `plan_prestaciones`, `presupuestos`, `nomenclador_prestaciones`, `aranceles`, `financiadores` | Profesionales indican; secretarias presupuestan |
 | Auditoría | `auditoria_accesos` 🔒 | Administrador |
 
@@ -54,6 +57,12 @@ erDiagram
 ## Odontograma a una fecha
 
 Las marcas nunca se modifican. Cuando algo cambia, una marca nueva **reemplaza** a la anterior: por ejemplo, una caries a realizar pasa a restauración realizada. Para corregir un error se usa una **anulación**. El estado a cualquier fecha se calcula aplicando las marcas hasta esa fecha (`calcularOdontograma`).
+
+## Seguimiento de pacientes
+
+- **`indicaciones_regreso`** 🔒: "¿Cuándo debería volver?". Paciente, turno atendido (opcional), `plazo`, `importante`, `fecha_visita` (desde ahí corre), `fecha_esperada` (sin fecha para "cuando avise" y "no hace falta"), `indicada_por` (profesional) y `cargada_por` (quien lo cargó). Vale la última de la última visita.
+- **`pendientes`**: un caso por fila. `tipo` (motivo), `detalle` (motivo legible), `desde` (desde cuándo corre), `vence_en` (fecha esperada de regreso), `prioridad`, `importante`, `estado` (abierto, en curso, no responde, resuelto, descartado), `responsable_id` y `tomado_en`. `contactar_desde` es la fecha sugerida de contacto, con `contactar_desde_motivo` y `contactar_desde_origen` (regla, persona o, más adelante, IA). `clave` (única) identifica el caso para no duplicarlo. Si no responde y era importante: `escalado_a` y `escalado_en`. Al cerrarse: `resuelto_en`, `cerrado_por` (vacío si se resolvió solo), `motivo_cierre` y `resuelto_por_turno_id`. No se borra (trigger).
+- **`pendiente_acciones`** 🔒: historial de cada pendiente. `tipo` (creado, tomado, contacto, nueva fecha, no responde, resuelto, descartado, reabierto), `origen` (usuario, sistema, ia), `canal` y `respuesta` (obligatorios en un contacto), `resultado` (lo que dijo el paciente o el motivo) y `contactar_desde` con su motivo.
 
 ## OSDE y particular
 

@@ -13,9 +13,9 @@ import { esFechaValida } from '@/lib/fechas';
 
 const texto = (datos: FormData, campo: string) => String(datos.get(campo) ?? '').trim();
 
-function volverALaAgenda(fecha: string, extra: Record<string, string> = {}): never {
+function volverALaAgenda(fecha: string, extra: Record<string, string> = {}, ancla = ''): never {
   const parametros = new URLSearchParams({ fecha, ...extra });
-  redirect(`/agenda?${parametros.toString()}`);
+  redirect(`/agenda?${parametros.toString()}${ancla}`);
 }
 
 /** Botones de estado de la agenda (Confirmar, Llegó, Atendido...). Funcionan sin JavaScript. */
@@ -35,8 +35,9 @@ export async function cambiarEstadoAccion(datos: FormData): Promise<void> {
     if (!(e instanceof ErrorDePermiso)) throw e;
     error = e.message;
   }
-  revalidatePath('/agenda');
-  volverALaAgenda(fecha, error ? { ...extra, error } : extra);
+  revalidatePath('/', 'layout');
+  // Al marcar "Atendido" se vuelve al turno, donde se pregunta "¿Cuándo debería volver?".
+  volverALaAgenda(fecha, error ? { ...extra, error } : extra, !error && estado === 'atendido' ? `#turno-${turnoId}` : '');
 }
 
 /** Nuevo turno o reprogramación (si viene `reprogramaA`). */
@@ -70,8 +71,8 @@ export async function guardarTurnoAccion(_previo: EstadoFormulario, datos: FormD
     throw e;
   }
   if (!resultado.ok) return { ok: false, errores: resultado.errores };
-  revalidatePath('/agenda');
-  revalidatePath('/pacientes');
+  // También el tablero y el contador de pendientes: si sacó turno, sus pendientes se resolvieron solos.
+  revalidatePath('/', 'layout');
   volverALaAgenda(fecha, { aviso: reprogramaA ? 'Turno reprogramado.' : 'Turno guardado.' });
 }
 

@@ -63,3 +63,23 @@ export function formatoFechaCorta(fecha: string): string {
   const [anio, mes, dia] = fecha.split('-');
   return `${dia}/${mes}/${anio}`;
 }
+
+/**
+ * Suma meses a una fecha YYYY-MM-DD. Si el día no existe en el mes de llegada
+ * se usa el último día del mes: 31/08 + 6 meses = 28/02.
+ */
+export function sumarMeses(fecha: string, meses: number): string {
+  if (!esFechaValida(fecha)) throw new RangeError(`Fecha inválida: ${fecha}`);
+  const [anio = 0, mes = 1, dia = 1] = fecha.split('-').map(Number);
+  const indice = anio * 12 + (mes - 1) + meses;
+  const anioNuevo = Math.floor(indice / 12);
+  const mesNuevo = indice - anioNuevo * 12 + 1;
+  const ultimoDia = new Date(Date.UTC(anioNuevo, mesNuevo, 0)).getUTCDate();
+  return `${String(anioNuevo).padStart(4, '0')}-${String(mesNuevo).padStart(2, '0')}-${String(Math.min(dia, ultimoDia)).padStart(2, '0')}`;
+}
+
+/** Días entre dos fechas YYYY-MM-DD (positivo si `hasta` es posterior). */
+export function diasEntre(desde: string, hasta: string): number {
+  if (!esFechaValida(desde) || !esFechaValida(hasta)) throw new RangeError(`Fecha inválida: ${desde} o ${hasta}`);
+  return Math.round((Date.parse(`${hasta}T12:00:00Z`) - Date.parse(`${desde}T12:00:00Z`)) / 86_400_000);
+}

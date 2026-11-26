@@ -2,12 +2,15 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { Avatar } from '@/components/ui/Avatar';
 import { EstadoDeTurno, EtiquetasPaciente, SinAcceso } from '@/components/ui/Etiquetas';
+import { PreguntaRegreso, ResumenRegreso } from '@/components/ui/Regreso';
 import { baseDeDatos } from '@/db/client';
 import { enlaceRecordatorioWhatsApp, esEstadoFinal, puedeCambiarEstado, type EstadoTurno } from '@/domain/agenda/turnos';
 import { puede } from '@/domain/permisos/permisos';
 import { capitalizar, esFechaValida, formatoFechaLarga, formatoHora, hoyEnArgentina, sumarDias } from '@/lib/fechas';
 import { agendaDelDia, type TurnoAgenda } from '@/server/agenda';
+import { indicacionesDeTurnos, type IndicacionResumen } from '@/server/pendientes';
 import { usuarioActual } from '@/server/sesion';
+import { registrarRegresoAccion } from '../pendientes/acciones';
 import { cambiarEstadoAccion } from './acciones';
 
 export const metadata: Metadata = { title: 'Agenda · Micaela Massa Odontología' };
@@ -44,6 +47,13 @@ export default async function PaginaAgenda({ searchParams }: Props) {
   const gestiona = puede(usuario, 'turnos.gestionar');
 
   const turnos = agenda.flatMap((p) => p.turnos);
+  // "¿Cuándo debería volver?" de los turnos atendidos.
+  const indicaciones = await indicacionesDeTurnos(
+    db,
+    usuario,
+    turnos.filter((t) => t.estado === 'atendido').map((t) => t.id),
+  );
+  const puedeIndicar = puede(usuario, 'seguimientos.gestionar');
   const contar = (estados: EstadoTurno[]) => turnos.filter((t) => estados.includes(t.estado)).length;
   const cantidad = (estados: EstadoTurno[], singular: string, plural: string) => {
     const n = contar(estados);
@@ -125,7 +135,17 @@ export default async function PaginaAgenda({ searchParams }: Props) {
             </span>
           </h2>
           {profesional.turnos.map((turno) => (
-            <Turno key={turno.id} turno={turno} profesional={profesional.nombre} gestiona={gestiona} fecha={fecha} filtro={parametros.profesional} />
+            <Turno
+              key={turno.id}
+              turno={turno}
+              profesional={profesional.nombre}
+              profesionalId={profesional.id}
+              gestiona={gestiona}
+              fecha={fecha}
+              filtro={parametros.profesional}
+              indicacion={indicaciones.get(turno.id) ?? null}
+              puedeIndicar={puedeIndicar}
+            />
           ))}
         </section>
       ))}
@@ -133,8 +153,30 @@ export default async function PaginaAgenda({ searchParams }: Props) {
   );
 }
 
-function Turno({ turno, profesional, gestiona, fecha, filtro }: { turno: TurnoAgenda; profesional: string; gestiona: boolean; fecha: string; filtro?: string }) {
+interface PropsTurno {
+  turno: TurnoAgenda;
+  profesional: string;
+  profesionalId: string;
+  gestiona: boolean;
+  fecha: string;
+  filtro?: string;
+  indicacion: IndicacionResumen | null;
+  puedeIndicar: boolean;
+}
+
+function Turno({ turno, profesional, profesionalId, gestiona, fecha, filtro, indicacion, puedeIndicar }: PropsTurno) {
   const { paciente } = turno;
+  const pregunta = (
+    <PreguntaRegreso
+      accion={registrarRegresoAccion}
+      pacienteId={paciente.id}
+      turnoId={turno.id}
+      volverA="agenda"
+      fecha={fecha}
+      filtroProfesional={filtro}
+      profesionalId={profesionalId}
+    />
+  );
   const pendiente = turno.estado === 'reservado' || turno.estado === 'confirmado';
   const whatsapp =
     paciente.telefono && paciente.aceptaMensajes
@@ -142,7 +184,11 @@ function Turno({ turno, profesional, gestiona, fecha, filtro }: { turno: TurnoAg
       : null;
 
   return (
-    <article className={`turno${esEstadoFinal(turno.estado) && turno.estado !== 'atendido' ? ' terminado' : ''}`} aria-label={`${formatoHora(turno.inicio)}, ${paciente.nombre} ${paciente.apellido}`}>
+    <article
+      id={`turno-${turno.id}`}
+      className={`turno${esEstadoFinal(turno.estado) && turno.estado !== 'atendido' ? ' terminado' : ''}`}
+      aria-label={`${formatoHora(turno.inicio)}, ${paciente.nombre} ${paciente.apellido}`}
+    >
       <div className="turno-hora">
         {formatoHora(turno.inicio)}
         <small>a {formatoHora(turno.fin)}</small>
@@ -196,6 +242,23 @@ function Turno({ turno, profesional, gestiona, fecha, filtro }: { turno: TurnoAg
                 {paciente.telefono ? 'Sin permiso para mensajes' : 'Sin teléfono'}
               </span>
             ))}
+        </div>
+      )}
+      {turno.estado === 'atendido' && (indicacion || puedeIndicar) && (
+        <div className={`turno-regreso${indicacion ? '' : ' sin-indicar'}`}>
+          {indicacion ? (
+            <>
+              <ResumenRegreso indicacion={indicacion} />
+              {puedeIndicar && (
+                <details className="cambiar-regreso">
+                  <summary>Cambiar</summary>
+                  {pregunta}
+                </details>
+              )}
+            </>
+          ) : (
+            pregunta
+          )}
         </div>
       )}
     </article>

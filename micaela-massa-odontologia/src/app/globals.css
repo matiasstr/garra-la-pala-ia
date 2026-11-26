@@ -774,3 +774,384 @@ a.boton {
   white-space: nowrap;
   border: 0;
 }
+
+/* ------------------------------------------------------------------ */
+/* Pendientes y "¿Cuándo debería volver?"                              */
+/* ------------------------------------------------------------------ */
+.contador-nav {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--rojo);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  vertical-align: 1px;
+}
+
+/* Botones táctiles de 44 px en todo lo nuevo. */
+.botones-plazo .boton,
+.filtros-pendientes .boton,
+.pendiente-acciones .boton,
+.pendiente-acciones summary.boton {
+  min-height: 44px;
+}
+
+/* En la agenda, debajo de un turno atendido. */
+.turno-regreso {
+  grid-column: 1 / -1;
+  padding-left: 168px;
+  min-width: 0;
+}
+
+.turno-regreso.sin-indicar .pregunta-regreso {
+  border: 2px solid var(--acento);
+  background: var(--acento-suave);
+}
+
+.pregunta-regreso fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.pregunta-regreso {
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  background: var(--superficie);
+}
+
+.pregunta-regreso legend {
+  font-weight: 700;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.pregunta-regreso .aclaracion {
+  margin: 0;
+  font-size: 0.85rem;
+}
+
+.pregunta-regreso .casilla {
+  min-height: 44px;
+  padding-top: 8px;
+}
+
+.botones-plazo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.resumen-regreso {
+  font-size: 0.92rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+
+.quien-regreso {
+  flex-basis: 100%;
+  font-size: 0.8rem;
+}
+
+.nota-regreso {
+  margin: 8px 0 0;
+  font-size: 0.88rem;
+  color: var(--azul);
+}
+
+.cambiar-regreso {
+  margin-top: 8px;
+}
+
+.cambiar-regreso > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--acento);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.cambiar-regreso[open] > summary {
+  margin-bottom: 8px;
+}
+
+/* Etiquetas del seguimiento */
+.etiqueta.motivo {
+  background: var(--azul-suave);
+  color: var(--azul);
+}
+
+.etiqueta.importante {
+  background: var(--ambar-suave);
+  color: var(--ambar);
+}
+
+.etiqueta.prioridad-alta {
+  background: var(--rojo-suave);
+  color: var(--rojo);
+}
+
+.etiqueta.estado-pendiente-no_responde {
+  background: var(--rojo);
+  color: #fff;
+}
+
+.etiqueta.estado-pendiente-abierto {
+  background: var(--gris-suave);
+  color: var(--texto);
+}
+
+.etiqueta.para-mi {
+  background: var(--zona-clinica-borde);
+  color: #fff;
+}
+
+/* Filtros */
+.filtros-pendientes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.filtro-grupo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.filtros-pendientes .boton[aria-current='true'] {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.filtros-pendientes .cantidad {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+  color: var(--texto-suave);
+}
+
+/* Lista */
+.lista-pendientes h2 {
+  margin-bottom: 4px;
+}
+
+.mas-adelante {
+  margin-top: 16px;
+}
+
+.mas-adelante > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.mas-adelante > summary h2 {
+  display: inline;
+  margin: 0;
+}
+
+.pendiente {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr);
+  gap: 12px;
+  padding: 16px 0 16px 10px;
+  border-left: 4px solid transparent;
+}
+
+.pendiente + .pendiente {
+  border-top: 1px solid var(--borde);
+}
+
+.pendiente.prioridad-alta {
+  border-left-color: var(--rojo);
+}
+
+.pendiente.prioridad-media {
+  border-left-color: var(--ambar);
+}
+
+.pendiente.prioridad-baja {
+  border-left-color: var(--borde);
+}
+
+.pendiente.para-mi {
+  background: var(--zona-clinica);
+  border-radius: 0 var(--radio) var(--radio) 0;
+  border-left-color: var(--zona-clinica-borde);
+}
+
+.pendiente-cuerpo {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pendiente-paciente a {
+  color: var(--texto);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.pendiente-paciente a:hover {
+  color: var(--acento);
+}
+
+.pendiente-detalle {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pendiente-datos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  font-size: 0.85rem;
+  color: var(--texto-suave);
+}
+
+.pendiente-datos .nota-contacto {
+  flex-basis: 100%;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.pendiente-acciones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.pendiente-acciones > form {
+  display: contents;
+}
+
+.sin-whatsapp {
+  font-size: 0.82rem;
+}
+
+.desplegable > summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.desplegable > summary::-webkit-details-marker {
+  display: none;
+}
+
+.desplegable > summary::after {
+  content: '▾';
+  margin-left: 6px;
+  font-size: 0.8em;
+}
+
+.desplegable[open] {
+  flex-basis: 100%;
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  padding: 12px;
+  background: var(--fondo);
+}
+
+.desplegable[open] > summary {
+  margin-bottom: 12px;
+  border-color: var(--acento);
+  color: var(--acento);
+}
+
+.opciones {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.opciones legend {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+  padding: 0;
+  margin-bottom: 6px;
+}
+
+.opcion {
+  position: relative;
+}
+
+.opcion input {
+  position: absolute;
+  opacity: 0;
+  inset: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.opcion span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  background: var(--superficie);
+  font-size: 0.9rem;
+}
+
+.opcion input:checked + span {
+  border-color: var(--acento);
+  background: var(--acento-suave);
+  color: var(--acento);
+  font-weight: 600;
+}
+
+.opcion input:focus-visible + span {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  .turno-regreso {
+    padding-left: 0;
+  }
+
+  .pendiente {
+    grid-template-columns: 40px minmax(0, 1fr);
+    gap: 10px;
+    padding-left: 8px;
+  }
+
+  .pendiente-foto .avatar {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}

@@ -16,7 +16,7 @@ Este documento es una matriz para revisar con un abogado especializado en derech
 | Consentimiento informado escrito | Ley 26.529 arts. 5 a 7 | Plantillas versionadas e inmutables. Consentimiento firmado como registro clínico | `plantillas_consentimiento` |
 | Consentimiento de menores | Código Civil y Comercial art. 26 | Regla según la edad y si el procedimiento es invasivo | `quienConsiente` |
 | Datos de salud = datos sensibles | Ley 25.326 | Cifrado en tránsito y en reposo, hosting en un país adecuado o con cláusulas modelo (por definir), base inscripta ante la AAIP | `docs/arquitectura.md` |
-| Permiso para mensajes, separado de la atención | Ley 25.326 | `pacientes.acepta_mensajes` con fecha. Recordatorios sin información clínica | `enlaceRecordatorioWhatsApp` |
+| Permiso para mensajes, separado de la atención | Ley 25.326 | `pacientes.acepta_mensajes` con fecha. Recordatorios y mensajes de seguimiento sin información clínica | `enlaceRecordatorioWhatsApp`, `enlaceWhatsAppSeguimiento` |
 | Receta electrónica solo por plataformas registradas | Ley 27.553; Res. 2214/2025 (ReNaPDiS) | El sistema no emite recetas: enlaza la plataforma registrada del profesional | Fuera de alcance |
 
 ## Tareas del consultorio (no son del sistema)
