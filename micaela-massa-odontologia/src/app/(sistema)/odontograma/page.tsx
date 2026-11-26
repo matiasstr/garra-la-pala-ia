@@ -1,17 +1,22 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { EditorOdontograma } from '@/components/odontograma/EditorOdontograma';
 
 export const metadata: Metadata = {
-  title: 'Odontograma · Micaela Massa Odontología',
+  title: 'Odontograma de práctica · Micaela Massa Odontología',
 };
 
 export default function PaginaOdontograma() {
   return (
     <main className="contenedor">
       <header className="encabezado">
-        <h1>Odontograma</h1>
-        <span className="suave">Demo: los cambios no se guardan</span>
+        <h1>Odontograma de práctica</h1>
+        <span className="suave">Con datos de ejemplo: los cambios no se guardan</span>
       </header>
+      <p className="aviso atencion">
+        Esta pantalla es para practicar. El odontograma de cada paciente está en su historia clínica: buscalo en <Link href="/pacientes">Pacientes</Link> y
+        tocá «Abrir historia clínica».
+      </p>
       <section className="zona-clinica" aria-label="Historia clínica">
         <div className="etiqueta-zona">
           <svg width="14" height="14" viewBox="0 0 24 24" aria-hidden="true">

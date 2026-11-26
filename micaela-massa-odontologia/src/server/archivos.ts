@@ -13,15 +13,17 @@ import type { BaseDeDatos } from '../db/tipos';
  * usa una carpeta local.
  */
 export interface AlmacenArchivos {
-  guardar(carpeta: string, bytes: Uint8Array, tipo: TipoImagen): Promise<{ clave: string; sha256: string }>;
+  guardar(carpeta: string, bytes: Uint8Array, tipo: TipoArchivo): Promise<{ clave: string; sha256: string }>;
   leer(clave: string): Promise<Uint8Array | null>;
 }
 
 export type TipoImagen = 'image/jpeg' | 'image/png' | 'image/webp';
+/** Imágenes y PDF (estudios, informes): lo que se puede adjuntar a la historia clínica. */
+export type TipoArchivo = TipoImagen | 'application/pdf';
 
-const EXTENSION: Record<TipoImagen, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const EXTENSION: Record<TipoArchivo, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'application/pdf': 'pdf' };
 const TIPO_POR_EXTENSION: Record<string, TipoImagen> = { jpg: 'image/jpeg', png: 'image/png', webp: 'image/webp' };
-const CLAVE_VALIDA = /^[a-z0-9-]+\/[0-9a-f]{64}\.(jpg|png|webp)$/;
+const CLAVE_VALIDA = /^[a-z0-9-]+\/[0-9a-f]{64}\.(jpg|png|webp|pdf)$/;
 
 const empiezaCon = (bytes: Uint8Array, firma: number[], desde = 0) => firma.every((b, i) => bytes[desde + i] === b);
 
@@ -35,6 +37,21 @@ export function detectarTipoImagen(bytes: Uint8Array): TipoImagen | null {
 
 export function tipoDeClave(clave: string): TipoImagen | null {
   return TIPO_POR_EXTENSION[clave.split('.').at(-1) ?? ''] ?? null;
+}
+
+/** Un PDF empieza con `%PDF-`. */
+export function esPdf(bytes: Uint8Array): boolean {
+  return empiezaCon(bytes, [0x25, 0x50, 0x44, 0x46, 0x2d]);
+}
+
+/** Tipo real de una imagen o un PDF según sus primeros bytes. */
+export function detectarTipoArchivo(bytes: Uint8Array): TipoArchivo | null {
+  return detectarTipoImagen(bytes) ?? (esPdf(bytes) ? 'application/pdf' : null);
+}
+
+/** Como `tipoDeClave`, pero también reconoce los PDF. */
+export function tipoArchivoDeClave(clave: string): TipoArchivo | null {
+  return clave.endsWith('.pdf') ? 'application/pdf' : tipoDeClave(clave);
 }
 
 export function almacenLocal(raiz: string): AlmacenArchivos {

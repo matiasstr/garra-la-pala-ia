@@ -4,13 +4,13 @@ Este documento es una matriz para revisar con un abogado especializado en derech
 
 | Requisito | Norma | Control en el sistema | Dónde |
 | --- | --- | --- | --- |
-| La historia clínica es inalterable | Ley 26.529 arts. 13 y 18; Ley 27.706 | Triggers que bloquean `UPDATE`, `DELETE` y `TRUNCATE`. Correcciones como enmiendas | `drizzle/0001_inalterabilidad.sql` |
-| Integridad verificable | Ley 27.706 y Dec. 393/2023 (autenticidad, inalterabilidad) | Cadena SHA-256 por historia clínica y verificación completa | `src/domain/firma/encadenamiento.ts` |
-| Cada asiento con fecha, firma e identificación del profesional | Ley 26.529 art. 15 | Solo firma un profesional activo con matrícula, con fecha y hora en la firma | `puedeFirmarRegistroClinico`, `firmarRegistro` |
-| Firma digital o electrónica | Ley 25.506; Dec. 1089/2012 art. 13; Dec. 393/2023 | Hoy, firma electrónica. Columnas preparadas para firma digital CMS | `registros_clinicos.metodo_firma` |
-| Una sola historia clínica por paciente | Ley 26.529 art. 17 | `historias_clinicas.paciente_id` único | `src/db/schema.ts` |
-| Acceso restringido | Ley 26.529 arts. 2 y 13; secreto profesional | Permisos por rol. La secretaria no accede a la historia clínica | `src/domain/permisos/permisos.ts` |
-| Trazabilidad de accesos | Ley 27.706 (trazabilidad) | Auditoría de solo agregar: quién vio, firmó o exportó | `auditoria_accesos`, `abrirHistoriaClinica` |
+| La historia clínica es inalterable | Ley 26.529 arts. 13 y 18; Ley 27.706 | Triggers que bloquean `UPDATE`, `DELETE` y `TRUNCATE`. Correcciones como enmiendas, solo del autor, vinculadas al original. Los borradores no son historia clínica hasta que se firman | `drizzle/0001_inalterabilidad.sql`, `firmarEnmienda` |
+| Integridad verificable | Ley 27.706 y Dec. 393/2023 (autenticidad, inalterabilidad) | Cadena SHA-256 por historia clínica, verificada cada vez que se abre y mostrada en pantalla. Cada adjunto queda citado por su SHA-256 en un registro firmado y se vuelve a comprobar al verlo | `src/domain/firma/encadenamiento.ts`, `leerAdjuntoClinico` |
+| Cada asiento con fecha, firma e identificación del profesional | Ley 26.529 art. 15 | Solo firma un profesional activo con matrícula, con fecha y hora en la firma. Nombre y matrícula quedan dentro del contenido firmado | `puedeFirmarRegistroClinico`, `firmarRegistro`, `firmanteDe` |
+| Firma digital o electrónica | Ley 25.506; Dec. 1089/2012 art. 13; Dec. 393/2023 | Hoy, firma electrónica: cada firma pide el PIN personal del profesional (guardado solo como huella scrypt, bloqueo tras 5 intentos) y muestra el paciente para confirmar. Columnas preparadas para firma digital CMS | `src/server/hc/pin.ts`, `registros_clinicos.metodo_firma` |
+| Una sola historia clínica por paciente | Ley 26.529 art. 17 | `historias_clinicas.paciente_id` único. La base impide adjuntar un archivo o vincular un turno de otro paciente | `src/db/schema.ts`, `drizzle/0004_historia_clinica_sql.sql` |
+| Acceso restringido | Ley 26.529 arts. 2 y 13; secreto profesional | Permisos por rol. La secretaria no accede a la historia clínica ni a sus adjuntos (ni por enlace directo); solo ve las alertas médicas. Los adjuntos no quedan en cachés | `src/domain/permisos/permisos.ts`, `verHistoriaClinica` |
+| Trazabilidad de accesos | Ley 27.706 (trazabilidad) | Auditoría de solo agregar, con IP y navegador: cada apertura de la historia clínica, cada firma, cada vez que se ve o descarga un adjunto y cada PIN de firma equivocado | `auditoria_accesos`, `abrirHistoriaClinica`, `leerAdjuntoClinico` |
 | Conservación mínima de 10 años | Ley 26.529 art. 18 | Nada se borra. Adjuntos con Object Lock (por implementar) | Triggers; `docs/arquitectura.md` |
 | Copia al paciente en 48 horas | Ley 26.529 art. 14 | Exportación a PDF firmado (por implementar) | Permiso `hc.exportar` |
 | Consentimiento informado escrito | Ley 26.529 arts. 5 a 7 | Plantillas versionadas e inmutables. Consentimiento firmado como registro clínico | `plantillas_consentimiento` |

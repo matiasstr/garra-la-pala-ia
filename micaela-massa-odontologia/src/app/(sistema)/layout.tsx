@@ -31,7 +31,7 @@ export default async function LayoutSistema({ children }: { children: React.Reac
             enlaces={[
               { href: '/agenda', texto: 'Agenda' },
               { href: '/pacientes', texto: 'Pacientes' },
-              { href: '/odontograma', texto: 'Odontograma (demo)' },
+              { href: '/odontograma', texto: 'Práctica de odontograma' },
             ]}
           />
           <div className="usuario-sesion">

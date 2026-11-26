@@ -1,14 +1,15 @@
 'use client';
 
 import { useMemo, useRef, useState } from 'react';
+import { describirMarca } from '@/domain/odontograma/cambios';
 import { CODIGOS_HALLAZGO, HALLAZGOS, NOMBRE_ESTADO, type CodigoHallazgo, type EstadoMarca } from '@/domain/odontograma/catalogo';
 import { calcularOdontograma, validarMarca, type MarcaNueva, type MarcaOdontograma } from '@/domain/odontograma/estado';
-import { nombreCara, type Cara, type VistaDenticion } from '@/domain/odontograma/piezas';
+import type { Cara, VistaDenticion } from '@/domain/odontograma/piezas';
 import { Odontograma } from './Odontograma';
 
-/** Estado previo de ejemplo, como si viniera de la historia clínica ya firmada. */
+/** Estado previo de ejemplo para la demo, como si viniera de la historia clínica ya firmada. */
 const FECHA_PREVIA = new Date('2026-03-10T13:00:00Z');
-const MARCAS_PREVIAS: MarcaOdontograma[] = [
+const MARCAS_DEMO: MarcaOdontograma[] = [
   { id: 'p1', pieza: 18, cara: null, hallazgo: 'ausente', estado: 'preexistente', registradaEn: FECHA_PREVIA },
   { id: 'p2', pieza: 11, cara: null, hallazgo: 'corona', estado: 'preexistente', registradaEn: FECHA_PREVIA },
   { id: 'p3', pieza: 26, cara: 'O', hallazgo: 'restauracion', estado: 'preexistente', registradaEn: FECHA_PREVIA },
@@ -29,48 +30,48 @@ const ESTADOS: { valor: EstadoMarca; clase: 'rojo' | 'azul' }[] = [
   { valor: 'preexistente', clase: 'azul' },
 ];
 
-function describir(marca: MarcaOdontograma): string {
-  const lugar = marca.cara ? `${marca.pieza} ${nombreCara(marca.pieza, marca.cara).toLowerCase()}` : `${marca.pieza}`;
-  return `${lugar}: ${HALLAZGOS[marca.hallazgo].nombre} (${NOMBRE_ESTADO[marca.estado].toLowerCase()})`;
+/** Qué hace el próximo toque: marcar un hallazgo o quitar una marca cargada por error. */
+type Herramienta = CodigoHallazgo | 'quitar';
+
+interface Props {
+  /** Marcas ya firmadas (todas, también las reemplazadas). Sin esto se muestra el ejemplo de la demo. */
+  marcasIniciales?: readonly MarcaOdontograma[];
+  vistaInicial?: VistaDenticion;
+  /**
+   * Lo que se muestra debajo de la lista de cambios (por ejemplo, "Firmar
+   * cambios" con PIN). Recibe los cambios sin firmar y una función para
+   * vaciarlos (con el mensaje a mostrar). Sin esto, la demo muestra botones
+   * que no guardan.
+   */
+  pieDeCambios?: (cambios: readonly MarcaOdontograma[], vaciar: (mensaje?: string) => void) => React.ReactNode;
 }
 
-export function EditorOdontograma() {
-  const [vista, setVista] = useState<VistaDenticion>('permanente');
-  const [hallazgo, setHallazgo] = useState<CodigoHallazgo>('caries');
+export function EditorOdontograma({ marcasIniciales = MARCAS_DEMO, vistaInicial = 'permanente', pieDeCambios }: Props) {
+  const [vista, setVista] = useState<VistaDenticion>(vistaInicial);
+  const [herramienta, setHerramienta] = useState<Herramienta>('caries');
   const [estadoMarca, setEstadoMarca] = useState<EstadoMarca>('pendiente');
   const [cambios, setCambios] = useState<MarcaOdontograma[]>([]);
   const [mensaje, setMensaje] = useState('');
   const contador = useRef(0);
 
-  const todas = useMemo(() => [...MARCAS_PREVIAS, ...cambios], [cambios]);
+  const todas = useMemo(() => [...marcasIniciales, ...cambios], [marcasIniciales, cambios]);
   const estado = useMemo(() => calcularOdontograma(todas), [todas]);
+  const esBorrador = (marca: MarcaOdontograma) => cambios.some((c) => c.id === marca.id);
 
-  function elegirHallazgo(codigo: CodigoHallazgo) {
-    setHallazgo(codigo);
-    if (!HALLAZGOS[codigo].admitePendiente && estadoMarca === 'pendiente') setEstadoMarca('preexistente');
+  function elegirHerramienta(nueva: Herramienta) {
+    setHerramienta(nueva);
+    if (nueva !== 'quitar' && !HALLAZGOS[nueva].admitePendiente && estadoMarca === 'pendiente') setEstadoMarca('preexistente');
   }
 
-  function tocar(pieza: number, caraTocada: Cara) {
-    const definicion = HALLAZGOS[hallazgo];
-    const cara = definicion.ambito === 'cara' ? caraTocada : null;
-    const vigentes = cara ? (estado.get(pieza)?.caras[cara] ?? []) : (estado.get(pieza)?.completa ?? []);
+  /** Saca un cambio sin firmar, y los que se apoyaban en él. */
+  function deshacer(marca: MarcaOdontograma) {
+    const sacar = new Set([marca.id]);
+    for (const c of cambios) if (c.reemplazaA && sacar.has(c.reemplazaA)) sacar.add(c.id);
+    setCambios((actuales) => actuales.filter((c) => !sacar.has(c.id)));
+    setMensaje(`Se deshizo: ${describirMarca(marca)}.`);
+  }
 
-    // Tocar de nuevo lo mismo deshace el cambio (todavía es un borrador sin firmar).
-    const repetida = vigentes.find((m) => m.hallazgo === hallazgo && m.estado === estadoMarca && cambios.some((c) => c.id === m.id));
-    if (repetida) {
-      setCambios((actuales) => actuales.filter((c) => c.id !== repetida.id && c.reemplazaA !== repetida.id));
-      setMensaje(`Se deshizo: ${describir(repetida)}.`);
-      return;
-    }
-
-    // En una cara, la marca nueva reemplaza a la anterior (caries → restauración).
-    // En la pieza completa, reemplaza a la del mismo hallazgo (extracción a realizar → realizada).
-    const anterior = cara ? vigentes.at(-1) : vigentes.findLast((m) => m.hallazgo === hallazgo);
-    if (anterior && anterior.hallazgo === hallazgo && anterior.estado === estadoMarca) {
-      setMensaje(`Ya está registrado: ${describir(anterior)}. Para corregirlo, elegí otro hallazgo o estado.`);
-      return;
-    }
-    const nueva: MarcaNueva = { pieza, cara, hallazgo, estado: estadoMarca, reemplazaA: anterior?.id ?? null };
+  function agregar(nueva: MarcaNueva, texto: string) {
     const errores = validarMarca(nueva, todas);
     if (errores.length) {
       setMensaje(errores.join(' '));
@@ -79,8 +80,55 @@ export function EditorOdontograma() {
     contador.current += 1;
     const marca: MarcaOdontograma = { ...nueva, id: `borrador-${contador.current}`, registradaEn: new Date() };
     setCambios((actuales) => [...actuales, marca]);
-    setMensaje(`Agregado: ${describir(marca)}.`);
+    setMensaje(texto.replace('{marca}', describirMarca({ ...marca, anulacion: false })));
   }
+
+  function quitar(pieza: number, caraTocada: Cara) {
+    const objetivo = estado.get(pieza)?.caras[caraTocada]?.at(-1) ?? estado.get(pieza)?.completa.at(-1);
+    if (!objetivo) {
+      setMensaje(`La pieza ${pieza} no tiene marcas para quitar.`);
+      return;
+    }
+    if (esBorrador(objetivo)) {
+      deshacer(objetivo);
+      return;
+    }
+    // Lo firmado no se borra: se agrega una anulación que lo saca del dibujo.
+    const { pieza: p, cara, hallazgo, estado: estadoAnterior } = objetivo;
+    agregar({ pieza: p, cara, hallazgo, estado: estadoAnterior, reemplazaA: objetivo.id, anulacion: true }, 'Se va a quitar: {marca}.');
+  }
+
+  function tocar(pieza: number, caraTocada: Cara) {
+    if (herramienta === 'quitar') {
+      quitar(pieza, caraTocada);
+      return;
+    }
+    const hallazgo = herramienta;
+    const definicion = HALLAZGOS[hallazgo];
+    const cara = definicion.ambito === 'cara' ? caraTocada : null;
+    const vigentes = cara ? (estado.get(pieza)?.caras[cara] ?? []) : (estado.get(pieza)?.completa ?? []);
+
+    // Tocar de nuevo lo mismo deshace el cambio (todavía es un borrador sin firmar).
+    const repetida = vigentes.find((m) => m.hallazgo === hallazgo && m.estado === estadoMarca && esBorrador(m));
+    if (repetida) {
+      deshacer(repetida);
+      return;
+    }
+
+    // En una cara, la marca nueva reemplaza a la anterior (caries → restauración).
+    // En la pieza completa, reemplaza a la del mismo hallazgo (extracción a realizar → realizada).
+    const anterior = cara ? vigentes.at(-1) : vigentes.findLast((m) => m.hallazgo === hallazgo);
+    if (anterior && anterior.hallazgo === hallazgo && anterior.estado === estadoMarca) {
+      setMensaje(`Ya está registrado: ${describirMarca(anterior)}. Para corregirlo, elegí otro hallazgo o estado, o "Quitar marca".`);
+      return;
+    }
+    agregar({ pieza, cara, hallazgo, estado: estadoMarca, reemplazaA: anterior?.id ?? null }, 'Agregado: {marca}.');
+  }
+
+  const descartar = (texto = 'Se descartaron los cambios sin firmar.') => {
+    setCambios([]);
+    setMensaje(texto);
+  };
 
   return (
     <div>
@@ -99,10 +147,13 @@ export function EditorOdontograma() {
         <span>Qué marcar</span>
         <div className="herramientas">
           {CODIGOS_HALLAZGO.map((codigo) => (
-            <button key={codigo} type="button" className="boton" aria-pressed={hallazgo === codigo} onClick={() => elegirHallazgo(codigo)}>
+            <button key={codigo} type="button" className="boton" aria-pressed={herramienta === codigo} onClick={() => elegirHerramienta(codigo)}>
               {HALLAZGOS[codigo].nombre}
             </button>
           ))}
+          <button type="button" className="boton herramienta-quitar" aria-pressed={herramienta === 'quitar'} onClick={() => elegirHerramienta('quitar')}>
+            Quitar marca
+          </button>
         </div>
       </div>
 
@@ -114,8 +165,8 @@ export function EditorOdontograma() {
               key={e.valor}
               type="button"
               className={`boton ${e.clase}`}
-              aria-pressed={estadoMarca === e.valor}
-              disabled={e.valor === 'pendiente' && !HALLAZGOS[hallazgo].admitePendiente}
+              aria-pressed={herramienta !== 'quitar' && estadoMarca === e.valor}
+              disabled={herramienta === 'quitar' || (e.valor === 'pendiente' && !HALLAZGOS[herramienta].admitePendiente)}
               onClick={() => setEstadoMarca(e.valor)}
             >
               {NOMBRE_ESTADO[e.valor]}
@@ -136,7 +187,7 @@ export function EditorOdontograma() {
           <span className="punto" style={{ background: 'var(--azul)' }} />
           Realizado o preexistente
         </span>
-        <span className="suave">Tocá una cara para marcarla. Tocá de nuevo para deshacer.</span>
+        <span className="suave">{herramienta === 'quitar' ? 'Tocá la marca que querés quitar.' : 'Tocá una cara para marcarla. Tocá de nuevo para deshacer.'}</span>
       </div>
 
       <p role="status" aria-live="polite" className="suave" style={{ minHeight: '1.5em' }}>
@@ -148,7 +199,12 @@ export function EditorOdontograma() {
         {cambios.length > 0 ? (
           <ol className="lista-cambios">
             {cambios.map((c) => (
-              <li key={c.id}>{describir(c)}</li>
+              <li key={c.id}>
+                <span>{describirMarca(c)}</span>
+                <button type="button" className="boton-texto" onClick={() => deshacer(c)} aria-label={`Deshacer: ${describirMarca(c)}`}>
+                  Deshacer
+                </button>
+              </li>
             ))}
           </ol>
         ) : (
@@ -156,27 +212,23 @@ export function EditorOdontograma() {
             Todavía no hay cambios.
           </p>
         )}
-        <div className="herramientas" style={{ marginTop: 12, marginBottom: 0 }}>
-          <button
-            type="button"
-            className="boton"
-            disabled={cambios.length === 0}
-            onClick={() => setMensaje('En el sistema, acá se pide el PIN de firma y los cambios quedan en la historia clínica sin poder modificarse. Esta demo no guarda nada.')}
-          >
-            Firmar cambios
-          </button>
-          <button
-            type="button"
-            className="boton"
-            disabled={cambios.length === 0}
-            onClick={() => {
-              setCambios([]);
-              setMensaje('Se descartaron los cambios sin firmar.');
-            }}
-          >
-            Descartar
-          </button>
-        </div>
+        {pieDeCambios ? (
+          pieDeCambios(cambios, descartar)
+        ) : (
+          <div className="herramientas" style={{ marginTop: 12, marginBottom: 0 }}>
+            <button
+              type="button"
+              className="boton"
+              disabled={cambios.length === 0}
+              onClick={() => setMensaje('En la historia clínica de cada paciente, acá se pide el PIN de firma y los cambios quedan guardados sin poder modificarse. Esta demo no guarda nada.')}
+            >
+              Firmar cambios
+            </button>
+            <button type="button" className="boton" disabled={cambios.length === 0} onClick={() => descartar()}>
+              Descartar
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
