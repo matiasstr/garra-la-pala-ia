@@ -4,6 +4,7 @@ import { sumarDias } from '../lib/fechas';
 import { altaPaciente } from '../server/pacientes';
 import { cambiarEstadoTurno, crearTurno } from '../server/agenda';
 import { alertasMedicas, financiadores, notasAdministrativas, profesionalEspecialidades, profesionales, sillones, usuarioRoles, usuarios } from './schema';
+import { sembrarHistoriasClinicas } from './semilla-historia-clinica';
 import type { BaseDeDatos } from './tipos';
 
 /**
@@ -89,6 +90,9 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
 
   // Un turno pasado, para que el historial no esté vacío.
   await turno(juanPerez, mica.id, sillon1.id, sumarDias(hoy, -30), '17:30', 30, 'Primera consulta', ['confirmado', 'en_sala', 'atendido']);
+
+  // Historias clínicas con evoluciones firmadas y odontograma (PIN de firma de prueba: 1234).
+  await sembrarHistoriasClinicas(db, hoy, { mica: mica.id, laura: laura.id }, { juanPerez, ana, martina, diego });
 
   return true;
 }

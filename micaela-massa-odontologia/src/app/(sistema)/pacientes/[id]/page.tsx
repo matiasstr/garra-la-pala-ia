@@ -220,10 +220,14 @@ export default async function PaginaFicha({ params, searchParams }: Props) {
               Historia clínica
             </div>
             {ficha.puedeVerHistoriaClinica ? (
-              <p style={{ margin: 0 }}>
-                La historia clínica con evoluciones firmadas es la próxima etapa. Mientras tanto podés probar el{' '}
-                <Link href="/odontograma">odontograma (demo)</Link>.
-              </p>
+              <div className="pila" style={{ gap: 8 }}>
+                <p style={{ margin: 0 }}>Evoluciones firmadas, odontograma y adjuntos. Cada apertura queda registrada.</p>
+                <div>
+                  <Link className="boton primario" href={`/pacientes/${paciente.id}/historia-clinica`}>
+                    Abrir historia clínica
+                  </Link>
+                </div>
+              </div>
             ) : (
               <p style={{ margin: 0 }}>Solo la ven los profesionales. Tu usuario no tiene acceso al contenido clínico.</p>
             )}

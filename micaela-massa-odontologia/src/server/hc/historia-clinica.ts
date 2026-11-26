@@ -16,11 +16,17 @@ const { auditoriaAccesos, historiasClinicas, marcasOdontograma, registrosClinico
 export type TipoRegistro = (typeof schema.tipoRegistroEnum.enumValues)[number];
 export type RegistroClinico = typeof registrosClinicos.$inferSelect;
 
-async function auditar(
+/** Desde dónde se hizo el pedido: queda en la auditoría junto con quién y cuándo. */
+export interface ContextoAuditoria {
+  ip?: string | null;
+  userAgent?: string | null;
+}
+
+export async function auditar(
   db: Pick<BaseDeDatos, 'insert'>,
-  entrada: { usuarioId: string; accion: string; entidad: string; entidadId?: string; pacienteId?: string; detalle?: unknown },
+  entrada: { usuarioId: string; accion: string; entidad: string; entidadId?: string; pacienteId?: string; detalle?: unknown } & ContextoAuditoria,
 ): Promise<void> {
-  await db.insert(auditoriaAccesos).values({ ...entrada, detalle: entrada.detalle ?? null });
+  await db.insert(auditoriaAccesos).values({ ...entrada, ip: entrada.ip ?? null, userAgent: entrada.userAgent ?? null, detalle: entrada.detalle ?? null });
 }
 
 /** Crea la historia clínica del paciente si no existe (una sola por paciente). */
@@ -40,11 +46,16 @@ export async function obtenerOCrearHistoriaClinica(db: BaseDeDatos, pacienteId: 
  * Abre la historia clínica para leerla. Solo profesionales, y cada apertura
  * queda en la auditoría (quién vio qué historia y cuándo).
  */
-export async function abrirHistoriaClinica(db: BaseDeDatos, usuario: UsuarioConRoles, historiaClinicaId: string): Promise<RegistroClinico[]> {
+export async function abrirHistoriaClinica(
+  db: BaseDeDatos,
+  usuario: UsuarioConRoles,
+  historiaClinicaId: string,
+  contexto: ContextoAuditoria & { detalle?: unknown } = {},
+): Promise<RegistroClinico[]> {
   if (!puede(usuario, 'hc.ver')) throw new ErrorDePermiso('No tenés acceso a la historia clínica.');
   const [hc] = await db.select().from(historiasClinicas).where(eq(historiasClinicas.id, historiaClinicaId));
   if (!hc) throw new ErrorDeValidacion(['La historia clínica no existe.']);
-  await auditar(db, { usuarioId: usuario.id, accion: 'hc.ver', entidad: 'historia_clinica', entidadId: hc.id, pacienteId: hc.pacienteId });
+  await auditar(db, { ...contexto, usuarioId: usuario.id, accion: 'hc.ver', entidad: 'historia_clinica', entidadId: hc.id, pacienteId: hc.pacienteId });
   return db.select().from(registrosClinicos).where(eq(registrosClinicos.historiaClinicaId, historiaClinicaId)).orderBy(asc(registrosClinicos.secuencia));
 }
 
@@ -65,7 +76,13 @@ export interface NuevoRegistro {
  * proyecta sus marcas al odontograma y deja constancia en la auditoría.
  * Todo en una transacción.
  */
-export async function firmarRegistro(db: BaseDeDatos, autor: UsuarioConRoles, nuevo: NuevoRegistro, ahora: Date = new Date()): Promise<RegistroClinico> {
+export async function firmarRegistro(
+  db: BaseDeDatos,
+  autor: UsuarioConRoles,
+  nuevo: NuevoRegistro,
+  ahora: Date = new Date(),
+  contexto: ContextoAuditoria = {},
+): Promise<RegistroClinico> {
   if (!puedeFirmarRegistroClinico(autor)) throw new ErrorDePermiso('Solo un profesional con matrícula puede firmar registros clínicos.');
   if ((nuevo.tipo === 'enmienda') !== Boolean(nuevo.enmiendaDe)) {
     throw new ErrorDeValidacion(['Una enmienda tiene que indicar qué registro corrige, y solo una enmienda puede hacerlo.']);
@@ -142,6 +159,7 @@ export async function firmarRegistro(db: BaseDeDatos, autor: UsuarioConRoles, nu
     }
 
     await auditar(tx, {
+      ...contexto,
       usuarioId: autor.id,
       accion: 'registro.firmar',
       entidad: 'registro_clinico',

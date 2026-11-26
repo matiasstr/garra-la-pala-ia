@@ -42,6 +42,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
   const todos = await agendaDelDia(db, usuario, fecha);
   const agenda = parametros.profesional ? todos.filter((p) => p.id === parametros.profesional) : todos;
   const gestiona = puede(usuario, 'turnos.gestionar');
+  const verHistoriaClinica = puede(usuario, 'hc.ver');
 
   const turnos = agenda.flatMap((p) => p.turnos);
   const contar = (estados: EstadoTurno[]) => turnos.filter((t) => estados.includes(t.estado)).length;
@@ -125,7 +126,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
             </span>
           </h2>
           {profesional.turnos.map((turno) => (
-            <Turno key={turno.id} turno={turno} profesional={profesional.nombre} gestiona={gestiona} fecha={fecha} filtro={parametros.profesional} />
+            <Turno key={turno.id} turno={turno} profesional={profesional.nombre} gestiona={gestiona} fecha={fecha} filtro={parametros.profesional} historiaClinica={verHistoriaClinica} />
           ))}
         </section>
       ))}
@@ -133,7 +134,7 @@ export default async function PaginaAgenda({ searchParams }: Props) {
   );
 }
 
-function Turno({ turno, profesional, gestiona, fecha, filtro }: { turno: TurnoAgenda; profesional: string; gestiona: boolean; fecha: string; filtro?: string }) {
+function Turno({ turno, profesional, gestiona, fecha, filtro, historiaClinica = false }: { turno: TurnoAgenda; profesional: string; gestiona: boolean; fecha: string; filtro?: string; historiaClinica?: boolean }) {
   const { paciente } = turno;
   const pendiente = turno.estado === 'reservado' || turno.estado === 'confirmado';
   const whatsapp =
@@ -167,6 +168,11 @@ function Turno({ turno, profesional, gestiona, fecha, filtro }: { turno: TurnoAg
           {turno.sillon ? ` · ${turno.sillon}` : ''}
         </span>
         <EtiquetasPaciente alertas={paciente.alertas} homonimos={paciente.homonimos} />
+        {historiaClinica && (
+          <Link className="boton chico enlace-hc" href={`/pacientes/${paciente.id}/historia-clinica?turno=${turno.id}`}>
+            Historia clínica
+          </Link>
+        )}
       </div>
       {gestiona && !esEstadoFinal(turno.estado) && (
         <div className="turno-acciones">

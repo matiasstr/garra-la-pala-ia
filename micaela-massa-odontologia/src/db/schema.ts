@@ -34,6 +34,7 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { ESTADOS_TURNO } from '../domain/agenda/turnos';
+import { TIPOS_REGISTRO } from '../domain/historia-clinica/registros';
 import { CODIGOS_HALLAZGO, ESTADOS_MARCA } from '../domain/odontograma/catalogo';
 import { CARAS } from '../domain/odontograma/piezas';
 import { ESPECIALIDADES, ROLES } from '../domain/permisos/roles';
@@ -48,16 +49,7 @@ export const estadoTurnoEnum = pgEnum('estado_turno', ESTADOS_TURNO);
 export const caraEnum = pgEnum('cara_dental', CARAS);
 export const hallazgoEnum = pgEnum('hallazgo_dental', CODIGOS_HALLAZGO);
 export const estadoMarcaEnum = pgEnum('estado_marca', ESTADOS_MARCA);
-export const tipoRegistroEnum = pgEnum('tipo_registro_clinico', [
-  'anamnesis',
-  'evolucion',
-  'diagnostico',
-  'odontograma',
-  'plan_tratamiento',
-  'consentimiento',
-  'adjunto',
-  'enmienda',
-]);
+export const tipoRegistroEnum = pgEnum('tipo_registro_clinico', TIPOS_REGISTRO);
 export const metodoFirmaEnum = pgEnum('metodo_firma', ['electronica', 'digital']);
 export const tipoAlertaEnum = pgEnum('tipo_alerta_medica', ['alergia', 'medicacion', 'condicion']);
 export const ambitoAdjuntoEnum = pgEnum('ambito_adjunto', ['administrativo', 'clinico']);
@@ -106,10 +98,23 @@ export const usuarioRoles = pgTable(
   (t) => [primaryKey({ columns: [t.usuarioId, t.rol] })],
 );
 
-export const profesionales = pgTable('profesionales', {
-  usuarioId: uuid('usuario_id').primaryKey().references(() => usuarios.id),
-  matricula: text('matricula').notNull().unique(),
-});
+export const profesionales = pgTable(
+  'profesionales',
+  {
+    usuarioId: uuid('usuario_id').primaryKey().references(() => usuarios.id),
+    matricula: text('matricula').notNull().unique(),
+    /**
+     * PIN de firma: se pide cada vez que se firma un registro clínico. Se guarda
+     * solo su huella (scrypt con sal, ver `src/server/hc/pin.ts`), nunca el PIN.
+     */
+    pinFirmaHash: text('pin_firma_hash'),
+    pinFirmaActualizadoEn: fechaHora('pin_firma_actualizado_en'),
+    /** Intentos fallidos seguidos. Al quinto, el PIN se bloquea 15 minutos. */
+    pinFirmaIntentosFallidos: smallint('pin_firma_intentos_fallidos').notNull().default(0),
+    pinFirmaBloqueadoHasta: fechaHora('pin_firma_bloqueado_hasta'),
+  },
+  (t) => [check('profesionales_pin_intentos', sql`${t.pinFirmaIntentosFallidos} >= 0`)],
+);
 
 export const profesionalEspecialidades = pgTable(
   'profesional_especialidades',
@@ -263,14 +268,19 @@ export const historiasClinicas = pgTable('historias_clinicas', {
  * Borradores: lo que el profesional está escribiendo y todavía no firmó. Se
  * pueden editar y descartar. Al firmar se copian a `registros_clinicos`.
  */
-export const borradoresClinicos = pgTable('borradores_clinicos', {
-  id: id(),
-  historiaClinicaId: uuid('historia_clinica_id').notNull().references(() => historiasClinicas.id),
-  autorId: uuid('autor_id').notNull().references(() => profesionales.usuarioId),
-  tipo: tipoRegistroEnum('tipo').notNull(),
-  contenido: jsonb('contenido').notNull(),
-  actualizadoEn: creadoEn(),
-});
+export const borradoresClinicos = pgTable(
+  'borradores_clinicos',
+  {
+    id: id(),
+    historiaClinicaId: uuid('historia_clinica_id').notNull().references(() => historiasClinicas.id),
+    autorId: uuid('autor_id').notNull().references(() => profesionales.usuarioId),
+    tipo: tipoRegistroEnum('tipo').notNull(),
+    contenido: jsonb('contenido').notNull(),
+    actualizadoEn: creadoEn(),
+  },
+  // Un borrador por profesional, historia clínica y tipo: lo que estaba escribiendo.
+  (t) => [unique('borradores_clinicos_unico').on(t.historiaClinicaId, t.autorId, t.tipo)],
+);
 
 /**
  * Registros clínicos firmados: inalterables y encadenados por hash.
@@ -352,6 +362,7 @@ export const adjuntos = pgTable(
   },
   (t) => [
     index('adjuntos_paciente_idx').on(t.pacienteId),
+    index('adjuntos_hc_idx').on(t.historiaClinicaId),
     check('adjuntos_clinicos_en_hc', sql`${t.ambito} <> 'clinico' or ${t.historiaClinicaId} is not null`),
     check('adjuntos_pieza_fdi', sql`${t.pieza} is null or (${CHECK_PIEZA_FDI('pieza')})`),
   ],
