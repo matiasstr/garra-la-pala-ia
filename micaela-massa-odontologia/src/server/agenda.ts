@@ -8,6 +8,7 @@ import { puede, type UsuarioConRoles } from '../domain/permisos/permisos';
 import { esFechaValida, esHoraValida, fechaHoraArgentina, hoyEnArgentina, rangoDelDia } from '../lib/fechas';
 import { ErrorDePermiso } from './errores';
 import { contarHomonimos } from './pacientes';
+import { sincronizarSinInterrumpir } from './pendientes';
 
 /** Estados que ocupan el horario del profesional y del sillón. */
 const ESTADOS_ACTIVOS: EstadoTurno[] = ['reservado', 'confirmado', 'en_sala', 'atendido'];
@@ -55,7 +56,7 @@ export async function crearTurno(db: BaseDeDatos, usuario: UsuarioConRoles, entr
   const inicio = fechaHoraArgentina(datos.fecha, datos.hora);
   const fin = new Date(inicio.getTime() + datos.duracionMinutos * 60_000);
 
-  return db.transaction(async (tx) => {
+  const resultado = await db.transaction(async (tx): Promise<ResultadoTurno> => {
     // Serializa los turnos del mismo profesional para que dos secretarias no den el mismo horario.
     const [profesional] = await tx.select().from(profesionales).where(eq(profesionales.usuarioId, datos.profesionalId)).for('update');
     if (!profesional) return { ok: false, errores: ['El profesional no existe.'] };
@@ -82,18 +83,25 @@ export async function crearTurno(db: BaseDeDatos, usuario: UsuarioConRoles, entr
     await registrarEvento(tx, turno.id, usuario.id, null, 'reservado', opciones.reprogramaA ? 'Reprogramación' : null);
     return { ok: true, turnoId: turno.id };
   });
+  // Si sacó turno, sus pendientes se resuelven solos.
+  if (resultado.ok) await sincronizarSinInterrumpir(db, datos.pacienteId, usuario.id);
+  return resultado;
 }
 
 export async function cambiarEstadoTurno(db: BaseDeDatos, usuario: UsuarioConRoles, turnoId: string, nuevo: EstadoTurno, nota?: string | null): Promise<ResultadoTurno> {
   if (!puede(usuario, 'turnos.gestionar')) throw new ErrorDePermiso('No tenés permiso para modificar turnos.');
-  return db.transaction(async (tx) => {
+  const resultado = await db.transaction(async (tx) => {
     const [turno] = await tx.select().from(turnos).where(eq(turnos.id, turnoId)).for('update');
-    if (!turno) return { ok: false, errores: ['El turno no existe.'] };
-    if (!puedeCambiarEstado(turno.estado, nuevo)) return { ok: false, errores: [`Un turno ${turno.estado.replace('_', ' ')} no puede pasar a ${nuevo.replace('_', ' ')}.`] };
+    if (!turno) return { ok: false as const, errores: ['El turno no existe.'] };
+    if (!puedeCambiarEstado(turno.estado, nuevo)) return { ok: false as const, errores: [`Un turno ${turno.estado.replace('_', ' ')} no puede pasar a ${nuevo.replace('_', ' ')}.`] };
     await tx.update(turnos).set({ estado: nuevo }).where(eq(turnos.id, turnoId));
     await registrarEvento(tx, turnoId, usuario.id, turno.estado, nuevo, nota);
-    return { ok: true, turnoId };
+    return { ok: true as const, turnoId, pacienteId: turno.pacienteId };
   });
+  if (!resultado.ok) return resultado;
+  // Atendido, ausente o cancelado cambian lo que hay que seguir de este paciente.
+  await sincronizarSinInterrumpir(db, resultado.pacienteId, usuario.id);
+  return { ok: true, turnoId };
 }
 
 /** Da un turno nuevo y marca el anterior como reprogramado, dejando el vínculo entre los dos. */

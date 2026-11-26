@@ -6,6 +6,18 @@ import { Client } from 'pg';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../../src/db/schema';
 import { prepararBase, reiniciarBase } from '../../src/db/preparar';
+import { sembrarDatosDePrueba } from '../../src/db/semilla';
+import { crearBaseDePrueba } from './base-de-prueba';
+
+/** Cuántos usuarios y pacientes deja una sola siembra (en PGlite), para comparar sin números fijos. */
+async function cantidadesDeUnaSiembra(hoy: string) {
+  const { db, cliente } = await crearBaseDePrueba();
+  await sembrarDatosDePrueba(db, hoy);
+  const [usuarios] = await db.select({ cantidad: count() }).from(schema.usuarios);
+  const [pacientes] = await db.select({ cantidad: count() }).from(schema.pacientes);
+  await cliente.close();
+  return { usuarios: usuarios?.cantidad, pacientes: pacientes?.cantidad };
+}
 
 /**
  * Con PostgreSQL de verdad (varias conexiones a la vez, como varias
@@ -41,14 +53,16 @@ describe.skipIf(!URL_PRUEBA)('demo con PostgreSQL real', () => {
     const instancias = await Promise.all([nuevaInstancia(), nuevaInstancia(), nuevaInstancia()]);
     await Promise.all(instancias.map(({ db, migrar }) => prepararBase(db, migrar, '2026-11-26')));
     const { db } = instancias[0]!;
-    expect(await db.select({ cantidad: count() }).from(schema.usuarios)).toEqual([{ cantidad: 3 }]);
-    expect(await db.select({ cantidad: count() }).from(schema.pacientes)).toEqual([{ cantidad: 6 }]);
+    const esperado = await cantidadesDeUnaSiembra('2026-11-26');
+    expect(await db.select({ cantidad: count() }).from(schema.usuarios)).toEqual([{ cantidad: esperado.usuarios }]);
+    expect(await db.select({ cantidad: count() }).from(schema.pacientes)).toEqual([{ cantidad: esperado.pacientes }]);
   });
 
   it('un reinicio espera a que termine otro y deja la base sembrada una sola vez', async () => {
     const [a, b] = await Promise.all([nuevaInstancia(), nuevaInstancia()]);
     await Promise.all([reiniciarBase(a.db, a.migrar, '2026-12-01'), prepararBase(b.db, b.migrar, '2026-12-01')]);
-    expect(await a.db.select({ cantidad: count() }).from(schema.usuarios)).toEqual([{ cantidad: 3 }]);
+    const esperado = await cantidadesDeUnaSiembra('2026-12-01');
+    expect(await a.db.select({ cantidad: count() }).from(schema.usuarios)).toEqual([{ cantidad: esperado.usuarios }]);
     await expect(a.db.execute(sql`delete from turno_eventos`)).rejects.toThrow();
   });
 });

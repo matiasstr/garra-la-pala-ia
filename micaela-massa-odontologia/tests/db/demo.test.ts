@@ -118,8 +118,10 @@ describe('preparar y reiniciar la base de la demo', () => {
 
   it('reiniciar borra todo, aunque haya historiales inalterables, y vuelve a sembrar con la fecha nueva', async () => {
     const secretaria = await usuarioPorNombre('Sofía');
+    // Lo que deja la semilla, sin contar el paciente que se agrega en la prueba.
+    const [{ cantidad: pacientesDeLaSemilla } = { cantidad: 0 }] = await base.db.select({ cantidad: count() }).from(schema.pacientes);
     const [particular] = await base.db.select().from(schema.financiadores).where(eq(schema.financiadores.esParticular, true));
-    const datos = { numeroDocumento: '41222333', nombre: 'Carla', apellido: 'Prueba', fechaNacimiento: '1990-01-01', financiadorId: particular!.id };
+    const datos = { numeroDocumento: '49876543', nombre: 'Carla', apellido: 'Prueba', fechaNacimiento: '1990-01-01', financiadorId: particular!.id };
     const alta = await altaPaciente(base.db, secretaria, datos, { confirmarQueEsOtraPersona: true });
     expect(alta.estado).toBe('creado');
     const pedido = await quienPideElReinicio(base.db, secretaria.id);
@@ -131,7 +133,7 @@ describe('preparar y reiniciar la base de la demo', () => {
 
     const pacientes = await base.db.select({ apellido: schema.pacientes.apellido }).from(schema.pacientes);
     expect(pacientes.map((p) => p.apellido)).not.toContain('Prueba');
-    expect(pacientes).toHaveLength(6);
+    expect(pacientes).toHaveLength(pacientesDeLaSemilla);
     expect(await base.db.select().from(schema.archivos)).toEqual([]);
     const porFecha = await turnosPorFecha();
     expect(porFecha.get(nuevoHoy)).toBe(7);

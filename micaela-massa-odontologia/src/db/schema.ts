@@ -39,7 +39,9 @@ import { TIPOS_REGISTRO } from '../domain/historia-clinica/registros';
 import { CODIGOS_HALLAZGO, ESTADOS_MARCA } from '../domain/odontograma/catalogo';
 import { CARAS } from '../domain/odontograma/piezas';
 import { ESPECIALIDADES, ROLES } from '../domain/permisos/roles';
-import { TIPOS_PENDIENTE } from '../domain/seguimiento/reglas';
+import { PLAZOS_REGRESO } from '../domain/seguimiento/regreso';
+import { PRIORIDADES, TIPOS_PENDIENTE } from '../domain/seguimiento/reglas';
+import { CANALES_CONTACTO, ESTADOS_PENDIENTE, ORIGENES_ACCION, RESPUESTAS_CONTACTO, TIPOS_ACCION_PENDIENTE } from '../domain/seguimiento/tablero';
 
 // ---------------------------------------------------------------------------
 // Enumerados
@@ -57,8 +59,13 @@ export const ambitoAdjuntoEnum = pgEnum('ambito_adjunto', ['administrativo', 'cl
 export const estadoPrestacionEnum = pgEnum('estado_prestacion', ['propuesta', 'aceptada', 'autorizada', 'realizada', 'cancelada']);
 export const respuestaPresupuestoEnum = pgEnum('respuesta_presupuesto', ['pendiente', 'aceptado', 'aceptado_parcial', 'rechazado']);
 export const tipoPendienteEnum = pgEnum('tipo_pendiente', TIPOS_PENDIENTE);
-export const estadoPendienteEnum = pgEnum('estado_pendiente', ['abierto', 'en_curso', 'resuelto', 'descartado']);
-export const canalContactoEnum = pgEnum('canal_contacto', ['llamada', 'whatsapp', 'instagram', 'email', 'presencial']);
+export const estadoPendienteEnum = pgEnum('estado_pendiente', ESTADOS_PENDIENTE);
+export const canalContactoEnum = pgEnum('canal_contacto', CANALES_CONTACTO);
+export const plazoRegresoEnum = pgEnum('plazo_regreso', PLAZOS_REGRESO);
+export const prioridadPendienteEnum = pgEnum('prioridad_pendiente', PRIORIDADES);
+export const tipoAccionPendienteEnum = pgEnum('tipo_accion_pendiente', TIPOS_ACCION_PENDIENTE);
+export const respuestaContactoEnum = pgEnum('respuesta_contacto', RESPUESTAS_CONTACTO);
+export const origenAccionEnum = pgEnum('origen_accion', ORIGENES_ACCION);
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const creadoEn = () => timestamp('creado_en', { withTimezone: true }).notNull().defaultNow();
@@ -463,6 +470,43 @@ export const presupuestoItems = pgTable(
 // ---------------------------------------------------------------------------
 // Seguimiento (tablero de pendientes)
 // ---------------------------------------------------------------------------
+
+/**
+ * "¿Cuándo debería volver?": lo indica la profesional al terminar el turno y
+ * lo carga ella o la secretaria. Es de solo agregar (trigger): para cambiarlo
+ * se carga otra indicación, y vale la última de la última visita.
+ */
+export const indicacionesRegreso = pgTable(
+  'indicaciones_regreso',
+  {
+    id: id(),
+    pacienteId: uuid('paciente_id').notNull().references(() => pacientes.id),
+    /** Turno atendido en que se indicó. Sin turno si se cargó desde la ficha sin visita previa. */
+    turnoId: uuid('turno_id').references(() => turnos.id),
+    plazo: plazoRegresoEnum('plazo').notNull(),
+    importante: boolean('importante').notNull().default(false),
+    /** Día de la visita: desde ahí corre el plazo. */
+    fechaVisita: date('fecha_visita', { mode: 'string' }).notNull(),
+    /** Día en que debería volver. Sin fecha para "Cuando el paciente avise" y "No hace falta". */
+    fechaEsperada: date('fecha_esperada', { mode: 'string' }),
+    /** Profesional que lo indicó. */
+    indicadaPor: uuid('indicada_por').notNull().references(() => profesionales.usuarioId),
+    /** Quién lo cargó en el sistema (la profesional o la secretaria). */
+    cargadaPor: uuid('cargada_por').notNull().references(() => usuarios.id),
+    creadoEn: creadoEn(),
+  },
+  (t) => [
+    index('indicaciones_regreso_paciente_idx').on(t.pacienteId, t.fechaVisita),
+    index('indicaciones_regreso_turno_idx').on(t.turnoId),
+    check('indicaciones_regreso_fecha_esperada', sql`(${t.plazo} in ('cuando_avise', 'no_hace_falta')) = (${t.fechaEsperada} is null)`),
+  ],
+);
+
+/**
+ * Un pendiente por caso (paciente + motivo + origen). Lo crean las reglas de
+ * `src/domain/seguimiento/reglas.ts`; `clave` evita duplicarlo al recalcular.
+ * El estado cambia; lo que pasó queda en `pendiente_acciones` (solo agregar).
+ */
 export const pendientes = pgTable(
   'pendientes',
   {
@@ -470,25 +514,75 @@ export const pendientes = pgTable(
     pacienteId: uuid('paciente_id').notNull().references(() => pacientes.id),
     tipo: tipoPendienteEnum('tipo').notNull(),
     estado: estadoPendienteEnum('estado').notNull().default('abierto'),
+    prioridad: prioridadPendienteEnum('prioridad').notNull().default('media'),
+    /** "Es importante que vuelva": si no responde, le llega a la profesional. */
+    importante: boolean('importante').notNull().default(false),
+    /** Caso que lo originó, por ejemplo `indicacion:<id>` o `ausente:<turno>`. Nulo en los manuales. */
+    clave: text('clave'),
     responsableId: uuid('responsable_id').references(() => usuarios.id),
+    tomadoEn: fechaHora('tomado_en'),
+    /** Motivo legible. */
     detalle: text('detalle').notNull(),
+    /** Desde cuándo corre. */
     desde: fechaHora('desde').notNull(),
+    /** Fecha esperada de regreso (indicación de la profesional), si hay. */
     venceEn: fechaHora('vence_en'),
+    /**
+     * Volver a contactar desde este día. Lo propone la regla al crearlo; después
+     * lo fija una persona ("cobra el 10") y, más adelante, lo podrá proponer una IA.
+     */
+    contactarDesde: date('contactar_desde', { mode: 'string' }).notNull().default(sql`current_date`),
+    contactarDesdeMotivo: text('contactar_desde_motivo'),
+    contactarDesdeOrigen: origenAccionEnum('contactar_desde_origen').notNull().default('sistema'),
+    /** Profesional que indicó el plazo o atendió el turno. */
+    profesionalId: uuid('profesional_id').references(() => profesionales.usuarioId),
+    turnoId: uuid('turno_id').references(() => turnos.id),
+    indicacionId: uuid('indicacion_id').references(() => indicacionesRegreso.id),
+    /** A quién le llegó porque no responde y era importante. */
+    escaladoA: uuid('escalado_a').references(() => usuarios.id),
+    escaladoEn: fechaHora('escalado_en'),
     creadoEn: creadoEn(),
     resueltoEn: fechaHora('resuelto_en'),
+    /** Quién lo cerró. Nulo si se resolvió solo (por ejemplo, porque sacó turno). */
+    cerradoPor: uuid('cerrado_por').references(() => usuarios.id),
+    motivoCierre: text('motivo_cierre'),
+    resueltoPorTurnoId: uuid('resuelto_por_turno_id').references(() => turnos.id),
   },
-  (t) => [index('pendientes_abiertos_idx').on(t.estado, t.responsableId)],
+  (t) => [
+    index('pendientes_abiertos_idx').on(t.estado, t.responsableId),
+    index('pendientes_paciente_idx').on(t.pacienteId),
+    unique('pendientes_clave_unica').on(t.clave),
+  ],
 );
 
-/** Qué se hizo con cada pendiente: quién contactó, por qué canal y qué pasó (solo agregar). */
-export const pendienteAcciones = pgTable('pendiente_acciones', {
-  id: id(),
-  pendienteId: uuid('pendiente_id').notNull().references(() => pendientes.id),
-  usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
-  canal: canalContactoEnum('canal').notNull(),
-  resultado: text('resultado').notNull(),
-  ocurridoEn: creadoEn(),
-});
+/**
+ * Qué se hizo con cada pendiente (solo agregar): quién lo tomó, cada contacto
+ * con su canal y respuesta, cada cambio de fecha con su motivo y cómo se cerró.
+ */
+export const pendienteAcciones = pgTable(
+  'pendiente_acciones',
+  {
+    id: id(),
+    pendienteId: uuid('pendiente_id').notNull().references(() => pendientes.id),
+    tipo: tipoAccionPendienteEnum('tipo').notNull().default('contacto'),
+    /** Quién lo hizo. En las acciones del sistema, quién provocó el recálculo (si se sabe). */
+    usuarioId: uuid('usuario_id').references(() => usuarios.id),
+    origen: origenAccionEnum('origen').notNull().default('usuario'),
+    canal: canalContactoEnum('canal'),
+    respuesta: respuestaContactoEnum('respuesta'),
+    /** Lo que respondió el paciente o el motivo, en palabras de quien lo carga. */
+    resultado: text('resultado'),
+    /** Volver a contactar desde este día, y por qué. */
+    contactarDesde: date('contactar_desde', { mode: 'string' }),
+    contactarDesdeMotivo: text('contactar_desde_motivo'),
+    ocurridoEn: creadoEn(),
+  },
+  (t) => [
+    index('pendiente_acciones_pendiente_idx').on(t.pendienteId, t.ocurridoEn),
+    check('pendiente_acciones_contacto', sql`${t.tipo} <> 'contacto' or (${t.canal} is not null and ${t.respuesta} is not null)`),
+    check('pendiente_acciones_autor', sql`${t.origen} <> 'usuario' or ${t.usuarioId} is not null`),
+  ],
+);
 
 // ---------------------------------------------------------------------------
 // Auditoría de accesos (solo agregar)

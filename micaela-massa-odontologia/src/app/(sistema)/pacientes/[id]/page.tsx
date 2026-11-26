@@ -4,11 +4,17 @@ import { notFound } from 'next/navigation';
 import { Avatar } from '@/components/ui/Avatar';
 import { EstadoDeTurno, EtiquetasPaciente, SinAcceso } from '@/components/ui/Etiquetas';
 import { FormularioAccion } from '@/components/ui/FormularioAccion';
+import { PreguntaRegreso, ResumenRegreso } from '@/components/ui/Regreso';
 import { baseDeDatos } from '@/db/client';
 import { puede } from '@/domain/permisos/permisos';
-import { capitalizar, fechaDe, formatoFechaCorta, formatoFechaLarga, formatoHora } from '@/lib/fechas';
+import { NOMBRE_TIPO_PENDIENTE } from '@/domain/seguimiento/reglas';
+import { NOMBRE_ACCION, NOMBRE_CANAL, NOMBRE_ESTADO_PENDIENTE, NOMBRE_RESPUESTA } from '@/domain/seguimiento/tablero';
+import { capitalizar, diasEntre, fechaDe, formatoFechaCorta, formatoFechaLarga, formatoHora, hoyEnArgentina } from '@/lib/fechas';
 import { fichaPaciente, listarFinanciadores, type TurnoDePaciente } from '@/server/pacientes';
+import { pendientesDePaciente, regresoDePaciente, type RegresoDePaciente } from '@/server/pendientes';
 import { usuarioActual } from '@/server/sesion';
+import { listarProfesionales } from '@/server/usuarios';
+import { registrarRegresoAccion } from '../../pendientes/acciones';
 import { actualizarContactoAccion, agregarCoberturaAccion, agregarNotaAccion } from '../acciones';
 import { SubirFoto } from './SubirFoto';
 
@@ -18,11 +24,11 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 interface Props {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ nuevo?: string }>;
+  searchParams: Promise<{ nuevo?: string; aviso?: string; error?: string }>;
 }
 
 export default async function PaginaFicha({ params, searchParams }: Props) {
-  const [{ id }, { nuevo }] = await Promise.all([params, searchParams]);
+  const [{ id }, { nuevo, aviso, error }] = await Promise.all([params, searchParams]);
   const usuario = await usuarioActual();
   if (!puede(usuario, 'paciente.ver_ficha')) {
     return (
@@ -37,12 +43,28 @@ export default async function PaginaFicha({ params, searchParams }: Props) {
   if (!ficha) notFound();
   const { paciente } = ficha;
   const cobertura = ficha.coberturas.find((c) => !c.vigenteHasta);
+  const haceSeguimiento = puede(usuario, 'seguimientos.gestionar');
+  const [regreso, seguimiento, profesionales] = await Promise.all([
+    regresoDePaciente(db, usuario, id),
+    haceSeguimiento ? pendientesDePaciente(db, usuario, id) : Promise.resolve(null),
+    haceSeguimiento ? listarProfesionales(db) : Promise.resolve([]),
+  ]);
 
   return (
     <main className="contenedor pila" style={{ gap: 16 }}>
       {nuevo && (
         <div className="aviso ok" role="status">
           Paciente cargado. Si está en el consultorio, sacale una foto: ayuda a no confundirlo con otro.
+        </div>
+      )}
+      {aviso && (
+        <div className="aviso ok" role="status">
+          {aviso}
+        </div>
+      )}
+      {error && (
+        <div className="aviso error" role="alert">
+          {error}
         </div>
       )}
 
@@ -211,6 +233,9 @@ export default async function PaginaFicha({ params, searchParams }: Props) {
             <ListaTurnos turnos={ficha.historialTurnos} vacio="Todavía no tuvo turnos." />
           </section>
 
+          <SeccionRegreso regreso={regreso} pacienteId={paciente.id} profesionales={profesionales} />
+          {seguimiento && <SeccionSeguimiento seguimiento={seguimiento} pacienteId={paciente.id} />}
+
           {/* Historia clínica: zona separada, solo profesionales */}
           <section className="zona-clinica" aria-labelledby="titulo-hc">
             <div className="etiqueta-zona" id="titulo-hc">
@@ -256,5 +281,108 @@ function ListaTurnos({ turnos, vacio }: { turnos: TurnoDePaciente[]; vacio: stri
         </li>
       ))}
     </ul>
+  );
+}
+
+/** Una visita de hace más de un mes ya no sirve de punto de partida: el plazo corre desde hoy. */
+const DIAS_VISITA_RECIENTE = 30;
+
+function SeccionRegreso({ regreso, pacienteId, profesionales }: { regreso: RegresoDePaciente; pacienteId: string; profesionales: { id: string; nombre: string; apellido: string }[] }) {
+  const hoy = hoyEnArgentina();
+  const visita = regreso.ultimaVisita && diasEntre(fechaDe(regreso.ultimaVisita.inicio), hoy) <= DIAS_VISITA_RECIENTE ? regreso.ultimaVisita : null;
+  return (
+    <section className="tarjeta" id="regreso" aria-labelledby="titulo-regreso">
+      <h2 id="titulo-regreso">¿Cuándo debería volver?</h2>
+      {regreso.vigente ? <ResumenRegreso indicacion={regreso.vigente} conVisita /> : <p className="suave">Todavía no se indicó cuándo debería volver.</p>}
+      {regreso.proximoTurno ? (
+        <p className="nota-regreso">Ya tiene turno el {formatoFechaCorta(fechaDe(regreso.proximoTurno.inicio))}: no hace falta llamarlo.</p>
+      ) : regreso.proximoAviso ? (
+        <p className="nota-regreso">Si no saca turno, aparece en Pendientes el {formatoFechaCorta(regreso.proximoAviso.contactarDesde)}.</p>
+      ) : null}
+      {regreso.puedeIndicar && (
+        <details className="cambiar-regreso" open={!regreso.vigente}>
+          <summary>{regreso.vigente ? 'Cambiar' : 'Cargar'}</summary>
+          <PreguntaRegreso
+            accion={registrarRegresoAccion}
+            pacienteId={pacienteId}
+            turnoId={visita?.turnoId}
+            volverA="ficha"
+            profesionales={profesionales}
+            profesionalId={visita?.profesionalId}
+            aclaracion={visita ? `Para la visita del ${formatoFechaCorta(fechaDe(visita.inicio))} con ${visita.profesional}.` : 'No tuvo visitas en el último mes: el plazo corre desde hoy.'}
+          />
+        </details>
+      )}
+      {regreso.anteriores.length > 0 && (
+        <details className="cambiar-regreso">
+          <summary>Indicaciones anteriores ({regreso.anteriores.length})</summary>
+          <ul className="lista-simple">
+            {regreso.anteriores.map((i) => (
+              <li key={i.id}>
+                <ResumenRegreso indicacion={i} conVisita />
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
+    </section>
+  );
+}
+
+function SeccionSeguimiento({ seguimiento, pacienteId }: { seguimiento: NonNullable<Awaited<ReturnType<typeof pendientesDePaciente>>>; pacienteId: string }) {
+  const { abiertos, historial } = seguimiento;
+  return (
+    <section className="tarjeta" aria-labelledby="titulo-seguimiento">
+      <h2 id="titulo-seguimiento">Pendientes</h2>
+      {abiertos.length === 0 ? (
+        <p className="suave">No tiene pendientes abiertos.</p>
+      ) : (
+        <>
+          <ul className="lista-simple">
+            {abiertos.map((p) => (
+              <li key={p.id}>
+                <span className="etiquetas">
+                  <span className="etiqueta motivo">{NOMBRE_TIPO_PENDIENTE[p.tipo]}</span>
+                  <span className={`etiqueta estado-pendiente-${p.estado}`}>{NOMBRE_ESTADO_PENDIENTE[p.estado]}</span>
+                  {p.importante && <span className="etiqueta importante">Es importante que vuelva</span>}
+                </span>
+                <div style={{ marginTop: 4 }}>{p.detalle}</div>
+                <div className="suave" style={{ fontSize: '0.85rem' }}>
+                  {p.responsable ? `Responsable: ${p.responsable.nombre}` : 'Sin responsable'} · {p.intentos === 0 ? 'sin intentos' : p.intentos === 1 ? '1 intento' : `${p.intentos} intentos`}
+                </div>
+              </li>
+            ))}
+          </ul>
+          <p style={{ marginBottom: 0 }}>
+            <Link className="boton chico" href={`/pendientes?paciente=${pacienteId}`}>
+              Ver en Pendientes
+            </Link>
+          </p>
+        </>
+      )}
+      <h2 style={{ marginTop: 20 }}>Historial de contactos</h2>
+      {historial.length === 0 ? (
+        <p className="suave">Todavía no hay movimientos.</p>
+      ) : (
+        <ul className="lista-simple">
+          {historial.slice(0, 20).map((a) => (
+            <li key={a.id}>
+              <strong>{a.tipo === 'contacto' && a.canal && a.respuesta ? `${NOMBRE_CANAL[a.canal]}: ${NOMBRE_RESPUESTA[a.respuesta]}` : NOMBRE_ACCION[a.tipo]}</strong>
+              <span className="suave"> · {NOMBRE_TIPO_PENDIENTE[a.tipoPendiente]}</span>
+              {a.resultado && <div>{a.resultado}</div>}
+              {a.contactarDesde && (
+                <div>
+                  Volver a contactar el {formatoFechaCorta(a.contactarDesde)}
+                  {a.contactarDesdeMotivo ? ` (${a.contactarDesdeMotivo})` : ''}
+                </div>
+              )}
+              <div className="suave" style={{ fontSize: '0.8rem' }}>
+                {a.usuario ?? 'Automático'} · {formatoFechaCorta(fechaDe(a.ocurridoEn))} {formatoHora(a.ocurridoEn)}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
   );
 }
