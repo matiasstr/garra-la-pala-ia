@@ -22,6 +22,20 @@
       "when": 1794960837243,
       "tag": "0002_busqueda_pacientes",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795657920323,
+      "tag": "0003_demo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795657924882,
+      "tag": "0004_demo_sql",
+      "breakpoints": true
     }
   ]
 }

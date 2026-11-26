@@ -35,6 +35,8 @@ Sin `DATABASE_URL` y fuera de producción (o con `MODO_DESARROLLO=1`):
 
 En producción, sin `DATABASE_URL` ni inicio de sesión configurado, la app se niega a funcionar.
 
+**Demo online** (modo desarrollo con `DATABASE_URL`, por ejemplo Vercel + Neon; ver [`demo.md`](demo.md)): al conectar se aplican las migraciones y los datos de prueba, con un *advisory lock* para que varias instancias no lo hagan a la vez; las fotos van a la tabla `archivos` de la base, porque el disco no dura; la semilla carga turnos para hoy y los próximos días hábiles, y con `DEMO_PERMITE_REINICIO=1` se pueden reiniciar los datos desde la app. Fuera de modo desarrollo nunca se migra ni se siembra solo.
+
 ## Decisiones de la agenda y la ficha
 
 - **Búsqueda sin tildes:** `pacientes.nombre_normalizado` y `texto_busqueda` son columnas que calcula la base (no las puede olvidar la aplicación). Un test verifica que la base normalice igual que el código.

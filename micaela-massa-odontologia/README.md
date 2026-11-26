@@ -63,6 +63,8 @@ npm run build && MODO_DESARROLLO=1 npm start
 
 `MODO_DESARROLLO=1` activa los datos y usuarios de prueba: nunca usarlo con pacientes reales.
 
+Para publicar una demo online con datos inventados (Vercel + Neon, gratis), seguir [`docs/demo.md`](docs/demo.md).
+
 Para usar una base real, copiar `.env.example` a `.env.local`, completar `DATABASE_URL` y aplicar las migraciones:
 
 ```bash
@@ -96,3 +98,4 @@ docs/                Arquitectura, modelo de datos y requisitos legales
 - [`docs/arquitectura.md`](docs/arquitectura.md): decisiones técnicas y pendientes.
 - [`docs/modelo-de-datos.md`](docs/modelo-de-datos.md): tablas y relaciones.
 - [`docs/legal.md`](docs/legal.md): cada requisito legal y cómo lo cumple el sistema (para la revisión del abogado).
+- [`docs/demo.md`](docs/demo.md): cómo publicar la demo online con datos inventados, paso a paso.

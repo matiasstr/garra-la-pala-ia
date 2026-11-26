@@ -19,6 +19,7 @@ import {
   boolean,
   char,
   check,
+  customType,
   date,
   index,
   integer,
@@ -497,4 +498,33 @@ export const auditoriaAccesos = pgTable(
     ocurridoEn: creadoEn(),
   },
   (t) => [index('auditoria_paciente_idx').on(t.pacienteId, t.ocurridoEn), index('auditoria_usuario_idx').on(t.usuarioId, t.ocurridoEn)],
+);
+
+// ---------------------------------------------------------------------------
+// Archivos guardados en la base (demo online, donde el disco no persiste)
+// ---------------------------------------------------------------------------
+const bytea = customType<{ data: Uint8Array; driverData: Uint8Array }>({ dataType: () => 'bytea' });
+
+/**
+ * Contenido de fotos y adjuntos cuando no hay un disco que dure (la demo en
+ * Vercel). Como el futuro bucket con Object Lock: el nombre es la huella
+ * SHA-256, la base comprueba la huella y la tabla es de solo agregar (trigger
+ * en la migración `demo_sql`).
+ */
+export const archivos = pgTable(
+  'archivos',
+  {
+    /** `fotos/<sha256>.jpg`: la misma clave que guarda `pacientes.foto_key`. */
+    clave: text('clave').primaryKey(),
+    sha256: char('sha256', { length: 64 }).notNull(),
+    tipoMime: text('tipo_mime').notNull(),
+    bytes: integer('bytes').notNull(),
+    contenido: bytea('contenido').notNull(),
+    creadoEn: creadoEn(),
+  },
+  (t) => [
+    check('archivos_huella', sql`${t.sha256} = encode(sha256(${t.contenido}), 'hex')`),
+    check('archivos_clave_con_huella', sql`${t.clave} like '%/' || ${t.sha256} || '.%'`),
+    check('archivos_tamanio', sql`${t.bytes} = octet_length(${t.contenido})`),
+  ],
 );

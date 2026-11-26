@@ -1,14 +1,18 @@
 import { count } from 'drizzle-orm';
 import type { EstadoTurno } from '../domain/agenda/turnos';
-import { sumarDias } from '../lib/fechas';
+import { proximosDiasHabiles, sumarDias } from '../lib/fechas';
 import { altaPaciente } from '../server/pacientes';
 import { cambiarEstadoTurno, crearTurno } from '../server/agenda';
 import { alertasMedicas, financiadores, notasAdministrativas, profesionalEspecialidades, profesionales, sillones, usuarioRoles, usuarios } from './schema';
 import type { BaseDeDatos } from './tipos';
 
+/** Días hábiles, después de hoy, que la semilla llena de turnos. */
+export const DIAS_HABILES_CON_TURNOS = 10;
+
 /**
  * Datos de prueba para desarrollo y demos. Todas las personas son inventadas.
- * Solo se cargan si la base está vacía.
+ * Solo se cargan si la base está vacía. Las fechas son relativas a `hoy`:
+ * turnos para hoy y para los próximos días hábiles.
  */
 export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promise<boolean> {
   const [{ cantidad } = { cantidad: 0 }] = await db.select({ cantidad: count() }).from(usuarios);
@@ -84,8 +88,27 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   await turno(lucia, mica.id, sillon1.id, hoy, '16:00', 45, 'Presupuesto de ortodoncia');
   await turno(diego, laura.id, sillon2.id, hoy, '10:00', 60, 'Endodoncia 46 (segunda sesión)', ['confirmado']);
   await turno(lucia, laura.id, sillon2.id, hoy, '12:00', 30, 'Consulta', ['ausente']);
-  await turno(juanPerez, mica.id, sillon1.id, sumarDias(hoy, 1), '17:00', 30, 'Control');
-  await turno(martina, mica.id, sillon1.id, sumarDias(hoy, 7), '16:30', 30, 'Sellador de fosas');
+  // Turnos para los próximos días hábiles: la agenda de la demo no queda vacía
+  // aunque pasen los días, y "Reiniciar datos de prueba" los vuelve a generar.
+  const visitas = [
+    { paciente: juanPerez, conMica: 'Control', conLaura: 'Endodoncia 36 (primera sesión)' },
+    { paciente: ana, conMica: 'Control de prótesis', conLaura: 'Consulta' },
+    { paciente: martina, conMica: 'Sellador de fosas', conLaura: 'Control' },
+    { paciente: lucia, conMica: 'Inicio de ortodoncia', conLaura: 'Endodoncia 21' },
+    { paciente: juanPerez2, conMica: 'Limpieza', conLaura: 'Consulta' },
+    { paciente: diego, conMica: 'Obturación 16', conLaura: 'Endodoncia 46 (control)' },
+  ];
+  for (const [dia, fecha] of proximosDiasHabiles(hoy, DIAS_HABILES_CON_TURNOS).entries()) {
+    // Cada día, los pacientes en otro orden y nadie dos veces el mismo día.
+    const visita = (n: number) => visitas[(n + dia) % visitas.length]!;
+    const confirmado: EstadoTurno[] = dia === 0 ? ['confirmado'] : [];
+    await turno(visita(0).paciente, mica.id, sillon1.id, fecha, '09:30', 45, visita(0).conMica, confirmado);
+    await turno(visita(1).paciente, mica.id, sillon1.id, fecha, '11:00', 30, visita(1).conMica, confirmado);
+    await turno(visita(2).paciente, mica.id, sillon1.id, fecha, '16:00', 30, visita(2).conMica);
+    if (dia % 2 === 0) await turno(visita(3).paciente, mica.id, sillon1.id, fecha, '17:00', 30, visita(3).conMica);
+    await turno(visita(4).paciente, laura.id, sillon2.id, fecha, '10:00', 60, visita(4).conLaura);
+    if (dia % 2 === 1) await turno(visita(5).paciente, laura.id, sillon2.id, fecha, '12:00', 30, visita(5).conLaura);
+  }
 
   // Un turno pasado, para que el historial no esté vacío.
   await turno(juanPerez, mica.id, sillon1.id, sumarDias(hoy, -30), '17:30', 30, 'Primera consulta', ['confirmado', 'en_sala', 'atendido']);

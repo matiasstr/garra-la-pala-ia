@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { baseDeDatos } from '@/db/client';
 import type { Rol } from '@/domain/permisos/roles';
+import { AvisoDemo } from '@/components/ui/AvisoDemo';
 import { Navegacion } from '@/components/ui/Navegacion';
 import { SelectorUsuario } from '@/components/ui/SelectorUsuario';
 import { modoDesarrollo } from '@/server/entorno';
@@ -21,6 +22,7 @@ export default async function LayoutSistema({ children }: { children: React.Reac
   return (
     <>
       <header className="barra">
+        {desarrollo && <AvisoDemo />}
         <div className="barra-interior">
           <Link href="/agenda" className="marca">
             Micaela Massa Odontología

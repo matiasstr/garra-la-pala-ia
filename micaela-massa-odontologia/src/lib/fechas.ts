@@ -40,6 +40,22 @@ export function sumarDias(fecha: string, dias: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+/** De lunes a viernes (los feriados no se tienen en cuenta). */
+export function esDiaHabil(fecha: string): boolean {
+  if (!esFechaValida(fecha)) throw new RangeError(`Fecha inválida: ${fecha}`);
+  const diaDeLaSemana = new Date(`${fecha}T12:00:00Z`).getUTCDay();
+  return diaDeLaSemana !== 0 && diaDeLaSemana !== 6;
+}
+
+/** Los próximos `cantidad` días hábiles después de `fecha` (sin incluirla). */
+export function proximosDiasHabiles(fecha: string, cantidad: number): string[] {
+  const dias: string[] = [];
+  for (let dia = sumarDias(fecha, 1); dias.length < cantidad; dia = sumarDias(dia, 1)) {
+    if (esDiaHabil(dia)) dias.push(dia);
+  }
+  return dias;
+}
+
 /** 09:30 */
 export function formatoHora(instante: Date): string {
   return new Intl.DateTimeFormat('es-AR', { timeZone: ZONA_HORARIA, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(instante);

@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { eq } from 'drizzle-orm';
+import { archivos } from '../db/schema';
+import type { BaseDeDatos } from '../db/tipos';
 
 /**
  * Almacenamiento de archivos (fotos, radiografías, estudios).
@@ -57,6 +60,37 @@ export function almacenLocal(raiz: string): AlmacenArchivos {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
         throw error;
       }
+    },
+  };
+}
+
+/**
+ * Almacén en la propia base de datos (tabla `archivos`), para la demo online:
+ * en Vercel el disco no dura entre pedidos. Mismas reglas que el almacén local:
+ * nombre por huella y nunca se pisa (la tabla además rechaza UPDATE y DELETE).
+ *
+ * La base se pide recién al usarlo, para que `almacenDelSistema()` siga siendo
+ * sincrónica.
+ */
+export function almacenEnBase(obtenerBase: () => Promise<BaseDeDatos>): AlmacenArchivos {
+  return {
+    async guardar(carpeta, bytes, tipo) {
+      if (!/^[a-z0-9-]+$/.test(carpeta)) throw new Error(`Carpeta inválida: ${carpeta}`);
+      const sha256 = createHash('sha256').update(bytes).digest('hex');
+      const clave = `${carpeta}/${sha256}.${EXTENSION[tipo]}`;
+      const db = await obtenerBase();
+      // Mismo contenido, misma clave: si ya estaba, no se toca.
+      await db
+        .insert(archivos)
+        .values({ clave, sha256, tipoMime: tipo, bytes: bytes.byteLength, contenido: bytes })
+        .onConflictDoNothing({ target: archivos.clave });
+      return { clave, sha256 };
+    },
+    async leer(clave) {
+      if (!CLAVE_VALIDA.test(clave)) return null;
+      const db = await obtenerBase();
+      const [fila] = await db.select({ contenido: archivos.contenido }).from(archivos).where(eq(archivos.clave, clave));
+      return fila ? new Uint8Array(fila.contenido) : null;
     },
   };
 }
