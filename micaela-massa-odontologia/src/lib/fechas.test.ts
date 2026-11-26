@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { esFechaValida, fechaHoraArgentina, formatoFechaLarga, formatoHora, hoyEnArgentina, rangoDelDia, sumarDias } from './fechas';
+import { esDiaHabil, esFechaValida, fechaHoraArgentina, formatoFechaLarga, formatoHora, hoyEnArgentina, proximosDiasHabiles, rangoDelDia, sumarDias } from './fechas';
 
 describe('fechas del consultorio', () => {
   it('interpreta la hora en Argentina aunque el servidor esté en UTC', () => {
@@ -20,6 +20,17 @@ describe('fechas del consultorio', () => {
     expect(esFechaValida('2026-11-18')).toBe(true);
     expect(sumarDias('2026-11-30', 1)).toBe('2026-12-01');
     expect(sumarDias('2026-03-01', -1)).toBe('2026-02-28');
+  });
+
+  it('cuenta los días hábiles salteando sábados y domingos', () => {
+    expect(esDiaHabil('2026-11-27')).toBe(true);
+    expect(esDiaHabil('2026-11-28')).toBe(false);
+    expect(esDiaHabil('2026-11-29')).toBe(false);
+    // Desde un viernes, el siguiente hábil es el lunes.
+    expect(proximosDiasHabiles('2026-11-27', 3)).toEqual(['2026-11-30', '2026-12-01', '2026-12-02']);
+    // Desde un sábado también.
+    expect(proximosDiasHabiles('2026-11-28', 1)).toEqual(['2026-11-30']);
+    expect(proximosDiasHabiles('2026-11-27', 0)).toEqual([]);
   });
 
   it('formatea la fecha larga en castellano', () => {
