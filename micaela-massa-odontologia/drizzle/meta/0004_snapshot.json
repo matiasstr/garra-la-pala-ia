@@ -1,0 +1,3523 @@
+{
+  "id": "1163d19c-744a-4f9a-9efe-d003bdf05e3a",
+  "prevId": "76457b9d-bf9d-4adf-8d59-bc6fe8241026",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.adjuntos": {
+      "name": "adjuntos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "ambito": {
+          "name": "ambito",
+          "type": "ambito_adjunto",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "historia_clinica_id": {
+          "name": "historia_clinica_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pieza": {
+          "name": "pieza",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "storage_key": {
+          "name": "storage_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sha256": {
+          "name": "sha256",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo_mime": {
+          "name": "tipo_mime",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "bytes": {
+          "name": "bytes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_original": {
+          "name": "nombre_original",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subido_por": {
+          "name": "subido_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "adjuntos_paciente_idx": {
+          "name": "adjuntos_paciente_idx",
+          "columns": [
+            {
+              "expression": "paciente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "adjuntos_paciente_id_pacientes_id_fk": {
+          "name": "adjuntos_paciente_id_pacientes_id_fk",
+          "tableFrom": "adjuntos",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "adjuntos_historia_clinica_id_historias_clinicas_id_fk": {
+          "name": "adjuntos_historia_clinica_id_historias_clinicas_id_fk",
+          "tableFrom": "adjuntos",
+          "columnsFrom": [
+            "historia_clinica_id"
+          ],
+          "tableTo": "historias_clinicas",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "adjuntos_subido_por_usuarios_id_fk": {
+          "name": "adjuntos_subido_por_usuarios_id_fk",
+          "tableFrom": "adjuntos",
+          "columnsFrom": [
+            "subido_por"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "adjuntos_storage_key_unique": {
+          "name": "adjuntos_storage_key_unique",
+          "columns": [
+            "storage_key"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "adjuntos_clinicos_en_hc": {
+          "name": "adjuntos_clinicos_en_hc",
+          "value": "\"adjuntos\".\"ambito\" <> 'clinico' or \"adjuntos\".\"historia_clinica_id\" is not null"
+        },
+        "adjuntos_pieza_fdi": {
+          "name": "adjuntos_pieza_fdi",
+          "value": "\"adjuntos\".\"pieza\" is null or ((pieza / 10 between 1 and 4 and pieza % 10 between 1 and 8) or (pieza / 10 between 5 and 8 and pieza % 10 between 1 and 5))"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.alertas_medicas": {
+      "name": "alertas_medicas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_alerta_medica",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activa": {
+          "name": "activa",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "registrada_por": {
+          "name": "registrada_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "desactivada_en": {
+          "name": "desactivada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "desactivada_por": {
+          "name": "desactivada_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "alertas_medicas_paciente_id_pacientes_id_fk": {
+          "name": "alertas_medicas_paciente_id_pacientes_id_fk",
+          "tableFrom": "alertas_medicas",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "alertas_medicas_registrada_por_profesionales_usuario_id_fk": {
+          "name": "alertas_medicas_registrada_por_profesionales_usuario_id_fk",
+          "tableFrom": "alertas_medicas",
+          "columnsFrom": [
+            "registrada_por"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "alertas_medicas_desactivada_por_profesionales_usuario_id_fk": {
+          "name": "alertas_medicas_desactivada_por_profesionales_usuario_id_fk",
+          "tableFrom": "alertas_medicas",
+          "columnsFrom": [
+            "desactivada_por"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.aranceles": {
+      "name": "aranceles",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "financiador_id": {
+          "name": "financiador_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prestacion_codigo": {
+          "name": "prestacion_codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_desde": {
+          "name": "vigente_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "aranceles_financiador_id_financiadores_id_fk": {
+          "name": "aranceles_financiador_id_financiadores_id_fk",
+          "tableFrom": "aranceles",
+          "columnsFrom": [
+            "financiador_id"
+          ],
+          "tableTo": "financiadores",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "aranceles_prestacion_codigo_nomenclador_prestaciones_codigo_fk": {
+          "name": "aranceles_prestacion_codigo_nomenclador_prestaciones_codigo_fk",
+          "tableFrom": "aranceles",
+          "columnsFrom": [
+            "prestacion_codigo"
+          ],
+          "tableTo": "nomenclador_prestaciones",
+          "columnsTo": [
+            "codigo"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "aranceles_vigencia": {
+          "name": "aranceles_vigencia",
+          "columns": [
+            "financiador_id",
+            "prestacion_codigo",
+            "vigente_desde"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.auditoria_accesos": {
+      "name": "auditoria_accesos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "accion": {
+          "name": "accion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad": {
+          "name": "entidad",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entidad_id": {
+          "name": "entidad_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detalle": {
+          "name": "detalle",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "auditoria_paciente_idx": {
+          "name": "auditoria_paciente_idx",
+          "columns": [
+            {
+              "expression": "paciente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "creado_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "auditoria_usuario_idx": {
+          "name": "auditoria_usuario_idx",
+          "columns": [
+            {
+              "expression": "usuario_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "creado_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "auditoria_accesos_usuario_id_usuarios_id_fk": {
+          "name": "auditoria_accesos_usuario_id_usuarios_id_fk",
+          "tableFrom": "auditoria_accesos",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "auditoria_accesos_paciente_id_pacientes_id_fk": {
+          "name": "auditoria_accesos_paciente_id_pacientes_id_fk",
+          "tableFrom": "auditoria_accesos",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.borradores_clinicos": {
+      "name": "borradores_clinicos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "historia_clinica_id": {
+          "name": "historia_clinica_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_registro_clinico",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contenido": {
+          "name": "contenido",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "borradores_clinicos_historia_clinica_id_historias_clinicas_id_fk": {
+          "name": "borradores_clinicos_historia_clinica_id_historias_clinicas_id_fk",
+          "tableFrom": "borradores_clinicos",
+          "columnsFrom": [
+            "historia_clinica_id"
+          ],
+          "tableTo": "historias_clinicas",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "borradores_clinicos_autor_id_profesionales_usuario_id_fk": {
+          "name": "borradores_clinicos_autor_id_profesionales_usuario_id_fk",
+          "tableFrom": "borradores_clinicos",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.codigos_recuperacion": {
+      "name": "codigos_recuperacion",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "codigo_hash": {
+          "name": "codigo_hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "usado_en": {
+          "name": "usado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anulado_en": {
+          "name": "anulado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "codigos_recuperacion_usuario_id_usuarios_id_fk": {
+          "name": "codigos_recuperacion_usuario_id_usuarios_id_fk",
+          "tableFrom": "codigos_recuperacion",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "codigos_recuperacion_unico": {
+          "name": "codigos_recuperacion_unico",
+          "columns": [
+            "usuario_id",
+            "codigo_hash"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.consultorio_miembros": {
+      "name": "consultorio_miembros",
+      "schema": "",
+      "columns": {
+        "consultorio_id": {
+          "name": "consultorio_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "consultorio_miembros_usuario_idx": {
+          "name": "consultorio_miembros_usuario_idx",
+          "columns": [
+            {
+              "expression": "usuario_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "consultorio_miembros_consultorio_id_consultorios_id_fk": {
+          "name": "consultorio_miembros_consultorio_id_consultorios_id_fk",
+          "tableFrom": "consultorio_miembros",
+          "columnsFrom": [
+            "consultorio_id"
+          ],
+          "tableTo": "consultorios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "consultorio_miembros_usuario_id_usuarios_id_fk": {
+          "name": "consultorio_miembros_usuario_id_usuarios_id_fk",
+          "tableFrom": "consultorio_miembros",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "consultorio_miembros_consultorio_id_usuario_id_pk": {
+          "name": "consultorio_miembros_consultorio_id_usuario_id_pk",
+          "columns": [
+            "consultorio_id",
+            "usuario_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.consultorios": {
+      "name": "consultorios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.enlaces_acceso": {
+      "name": "enlaces_acceso",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "motivo_enlace_acceso",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_por": {
+          "name": "creado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "vence_en": {
+          "name": "vence_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usado_en": {
+          "name": "usado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anulado_en": {
+          "name": "anulado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "enlaces_acceso_uno_vigente": {
+          "name": "enlaces_acceso_uno_vigente",
+          "columns": [
+            {
+              "expression": "usuario_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "with": {},
+          "method": "btree",
+          "where": "\"enlaces_acceso\".\"usado_en\" is null and \"enlaces_acceso\".\"anulado_en\" is null",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "enlaces_acceso_usuario_id_usuarios_id_fk": {
+          "name": "enlaces_acceso_usuario_id_usuarios_id_fk",
+          "tableFrom": "enlaces_acceso",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "enlaces_acceso_creado_por_usuarios_id_fk": {
+          "name": "enlaces_acceso_creado_por_usuarios_id_fk",
+          "tableFrom": "enlaces_acceso",
+          "columnsFrom": [
+            "creado_por"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "enlaces_acceso_token_hash_unique": {
+          "name": "enlaces_acceso_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "enlaces_acceso_token_hash_hex": {
+          "name": "enlaces_acceso_token_hash_hex",
+          "value": "\"enlaces_acceso\".\"token_hash\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.financiadores": {
+      "name": "financiadores",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "es_particular": {
+          "name": "es_particular",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "financiadores_nombre_unique": {
+          "name": "financiadores_nombre_unique",
+          "columns": [
+            "nombre"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.historias_clinicas": {
+      "name": "historias_clinicas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "numero": {
+          "name": "numero",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "identity": {
+            "name": "historias_clinicas_numero_seq",
+            "increment": "1",
+            "minValue": "1",
+            "maxValue": "2147483647",
+            "startWith": "1",
+            "cache": "1",
+            "cycle": false,
+            "schema": "public",
+            "type": "always"
+          }
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "historias_clinicas_paciente_id_pacientes_id_fk": {
+          "name": "historias_clinicas_paciente_id_pacientes_id_fk",
+          "tableFrom": "historias_clinicas",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "historias_clinicas_numero_unique": {
+          "name": "historias_clinicas_numero_unique",
+          "columns": [
+            "numero"
+          ],
+          "nullsNotDistinct": false
+        },
+        "historias_clinicas_paciente_id_unique": {
+          "name": "historias_clinicas_paciente_id_unique",
+          "columns": [
+            "paciente_id"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.intentos_ingreso": {
+      "name": "intentos_ingreso",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "email_huella": {
+          "name": "email_huella",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "resultado": {
+          "name": "resultado",
+          "type": "resultado_intento_ingreso",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "intentos_ingreso_email_idx": {
+          "name": "intentos_ingreso_email_idx",
+          "columns": [
+            {
+              "expression": "email_huella",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "creado_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "intentos_ingreso_ip_idx": {
+          "name": "intentos_ingreso_ip_idx",
+          "columns": [
+            {
+              "expression": "ip",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "creado_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "intentos_ingreso_usuario_id_usuarios_id_fk": {
+          "name": "intentos_ingreso_usuario_id_usuarios_id_fk",
+          "tableFrom": "intentos_ingreso",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.marcas_odontograma": {
+      "name": "marcas_odontograma",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "registro_id": {
+          "name": "registro_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "historia_clinica_id": {
+          "name": "historia_clinica_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pieza": {
+          "name": "pieza",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "cara": {
+          "name": "cara",
+          "type": "cara_dental",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "hallazgo": {
+          "name": "hallazgo",
+          "type": "hallazgo_dental",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_marca",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reemplaza_a": {
+          "name": "reemplaza_a",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "anulacion": {
+          "name": "anulacion",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "prestacion_codigo": {
+          "name": "prestacion_codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "registrada_en": {
+          "name": "registrada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {
+        "marcas_odontograma_hc_idx": {
+          "name": "marcas_odontograma_hc_idx",
+          "columns": [
+            {
+              "expression": "historia_clinica_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "registrada_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "marcas_odontograma_registro_id_registros_clinicos_id_fk": {
+          "name": "marcas_odontograma_registro_id_registros_clinicos_id_fk",
+          "tableFrom": "marcas_odontograma",
+          "columnsFrom": [
+            "registro_id"
+          ],
+          "tableTo": "registros_clinicos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "marcas_odontograma_historia_clinica_id_historias_clinicas_id_fk": {
+          "name": "marcas_odontograma_historia_clinica_id_historias_clinicas_id_fk",
+          "tableFrom": "marcas_odontograma",
+          "columnsFrom": [
+            "historia_clinica_id"
+          ],
+          "tableTo": "historias_clinicas",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "marcas_odontograma_reemplaza_a_marcas_odontograma_id_fk": {
+          "name": "marcas_odontograma_reemplaza_a_marcas_odontograma_id_fk",
+          "tableFrom": "marcas_odontograma",
+          "columnsFrom": [
+            "reemplaza_a"
+          ],
+          "tableTo": "marcas_odontograma",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "marcas_odontograma_prestacion_codigo_nomenclador_prestaciones_codigo_fk": {
+          "name": "marcas_odontograma_prestacion_codigo_nomenclador_prestaciones_codigo_fk",
+          "tableFrom": "marcas_odontograma",
+          "columnsFrom": [
+            "prestacion_codigo"
+          ],
+          "tableTo": "nomenclador_prestaciones",
+          "columnsTo": [
+            "codigo"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "marcas_odontograma_reemplazo_unico": {
+          "name": "marcas_odontograma_reemplazo_unico",
+          "columns": [
+            "reemplaza_a"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "marcas_odontograma_pieza_fdi": {
+          "name": "marcas_odontograma_pieza_fdi",
+          "value": "(pieza / 10 between 1 and 4 and pieza % 10 between 1 and 8) or (pieza / 10 between 5 and 8 and pieza % 10 between 1 and 5)"
+        },
+        "marcas_odontograma_anulacion": {
+          "name": "marcas_odontograma_anulacion",
+          "value": "not \"marcas_odontograma\".\"anulacion\" or \"marcas_odontograma\".\"reemplaza_a\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.nomenclador_prestaciones": {
+      "name": "nomenclador_prestaciones",
+      "schema": "",
+      "columns": {
+        "codigo": {
+          "name": "codigo",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "descripcion": {
+          "name": "descripcion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "requiere_pieza": {
+          "name": "requiere_pieza",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "requiere_cara": {
+          "name": "requiere_cara",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.notas_administrativas": {
+      "name": "notas_administrativas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "actualizado_en": {
+          "name": "actualizado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "notas_administrativas_paciente_id_pacientes_id_fk": {
+          "name": "notas_administrativas_paciente_id_pacientes_id_fk",
+          "tableFrom": "notas_administrativas",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "notas_administrativas_autor_id_usuarios_id_fk": {
+          "name": "notas_administrativas_autor_id_usuarios_id_fk",
+          "tableFrom": "notas_administrativas",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.paciente_coberturas": {
+      "name": "paciente_coberturas",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "financiador_id": {
+          "name": "financiador_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "numero_afiliado": {
+          "name": "numero_afiliado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "plan": {
+          "name": "plan",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "vigente_desde": {
+          "name": "vigente_desde",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente_hasta": {
+          "name": "vigente_hasta",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "paciente_coberturas_paciente_idx": {
+          "name": "paciente_coberturas_paciente_idx",
+          "columns": [
+            {
+              "expression": "paciente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "paciente_coberturas_paciente_id_pacientes_id_fk": {
+          "name": "paciente_coberturas_paciente_id_pacientes_id_fk",
+          "tableFrom": "paciente_coberturas",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "paciente_coberturas_financiador_id_financiadores_id_fk": {
+          "name": "paciente_coberturas_financiador_id_financiadores_id_fk",
+          "tableFrom": "paciente_coberturas",
+          "columnsFrom": [
+            "financiador_id"
+          ],
+          "tableTo": "financiadores",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pacientes": {
+      "name": "pacientes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "tipo_documento": {
+          "name": "tipo_documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'DNI'"
+        },
+        "numero_documento": {
+          "name": "numero_documento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fecha_nacimiento": {
+          "name": "fecha_nacimiento",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "telefono": {
+          "name": "telefono",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "foto_key": {
+          "name": "foto_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "acepta_mensajes": {
+          "name": "acepta_mensajes",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "acepta_mensajes_en": {
+          "name": "acepta_mensajes_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "creado_por": {
+          "name": "creado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre_normalizado": {
+          "name": "nombre_normalizado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "type": "stored",
+            "as": "btrim(regexp_replace(lower(translate(apellido || ' ' || nombre, 'ÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇáàäâãéèëêíìïîóòöôõúùüûñç', 'AAAAAEEEEIIIIOOOOOUUUUNCaaaaaeeeeiiiiooooouuuunc')), '[^a-z0-9]+', ' ', 'g'))"
+          }
+        },
+        "texto_busqueda": {
+          "name": "texto_busqueda",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "generated": {
+            "type": "stored",
+            "as": "btrim(regexp_replace(lower(translate(apellido || ' ' || nombre, 'ÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇáàäâãéèëêíìïîóòöôõúùüûñç', 'AAAAAEEEEIIIIOOOOOUUUUNCaaaaaeeeeiiiiooooouuuunc')), '[^a-z0-9]+', ' ', 'g')) || ' ' || numero_documento"
+          }
+        }
+      },
+      "indexes": {
+        "pacientes_apellido_nombre_idx": {
+          "name": "pacientes_apellido_nombre_idx",
+          "columns": [
+            {
+              "expression": "apellido",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "nombre",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "pacientes_nombre_normalizado_idx": {
+          "name": "pacientes_nombre_normalizado_idx",
+          "columns": [
+            {
+              "expression": "nombre_normalizado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "pacientes_creado_por_usuarios_id_fk": {
+          "name": "pacientes_creado_por_usuarios_id_fk",
+          "tableFrom": "pacientes",
+          "columnsFrom": [
+            "creado_por"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "pacientes_documento_unico": {
+          "name": "pacientes_documento_unico",
+          "columns": [
+            "tipo_documento",
+            "numero_documento"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pendiente_acciones": {
+      "name": "pendiente_acciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "pendiente_id": {
+          "name": "pendiente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "canal": {
+          "name": "canal",
+          "type": "canal_contacto",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "resultado": {
+          "name": "resultado",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "pendiente_acciones_pendiente_id_pendientes_id_fk": {
+          "name": "pendiente_acciones_pendiente_id_pendientes_id_fk",
+          "tableFrom": "pendiente_acciones",
+          "columnsFrom": [
+            "pendiente_id"
+          ],
+          "tableTo": "pendientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "pendiente_acciones_usuario_id_usuarios_id_fk": {
+          "name": "pendiente_acciones_usuario_id_usuarios_id_fk",
+          "tableFrom": "pendiente_acciones",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.pendientes": {
+      "name": "pendientes",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_pendiente",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_pendiente",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'abierto'"
+        },
+        "responsable_id": {
+          "name": "responsable_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "detalle": {
+          "name": "detalle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "desde": {
+          "name": "desde",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vence_en": {
+          "name": "vence_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "resuelto_en": {
+          "name": "resuelto_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "pendientes_abiertos_idx": {
+          "name": "pendientes_abiertos_idx",
+          "columns": [
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "responsable_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "pendientes_paciente_id_pacientes_id_fk": {
+          "name": "pendientes_paciente_id_pacientes_id_fk",
+          "tableFrom": "pendientes",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "pendientes_responsable_id_usuarios_id_fk": {
+          "name": "pendientes_responsable_id_usuarios_id_fk",
+          "tableFrom": "pendientes",
+          "columnsFrom": [
+            "responsable_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.plan_prestaciones": {
+      "name": "plan_prestaciones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "prestacion_codigo": {
+          "name": "prestacion_codigo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pieza": {
+          "name": "pieza",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "caras": {
+          "name": "caras",
+          "type": "cara_dental[]",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "financiador_id": {
+          "name": "financiador_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_prestacion",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'propuesta'"
+        },
+        "numero_autorizacion": {
+          "name": "numero_autorizacion",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "marca_id": {
+          "name": "marca_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "indicada_por": {
+          "name": "indicada_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "registro_realizacion_id": {
+          "name": "registro_realizacion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "realizada_en": {
+          "name": "realizada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "plan_prestaciones_paciente_idx": {
+          "name": "plan_prestaciones_paciente_idx",
+          "columns": [
+            {
+              "expression": "paciente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "estado",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "plan_prestaciones_paciente_id_pacientes_id_fk": {
+          "name": "plan_prestaciones_paciente_id_pacientes_id_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "plan_prestaciones_prestacion_codigo_nomenclador_prestaciones_codigo_fk": {
+          "name": "plan_prestaciones_prestacion_codigo_nomenclador_prestaciones_codigo_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "prestacion_codigo"
+          ],
+          "tableTo": "nomenclador_prestaciones",
+          "columnsTo": [
+            "codigo"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "plan_prestaciones_financiador_id_financiadores_id_fk": {
+          "name": "plan_prestaciones_financiador_id_financiadores_id_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "financiador_id"
+          ],
+          "tableTo": "financiadores",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "plan_prestaciones_marca_id_marcas_odontograma_id_fk": {
+          "name": "plan_prestaciones_marca_id_marcas_odontograma_id_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "marca_id"
+          ],
+          "tableTo": "marcas_odontograma",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "plan_prestaciones_indicada_por_profesionales_usuario_id_fk": {
+          "name": "plan_prestaciones_indicada_por_profesionales_usuario_id_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "indicada_por"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "plan_prestaciones_registro_realizacion_id_registros_clinicos_id_fk": {
+          "name": "plan_prestaciones_registro_realizacion_id_registros_clinicos_id_fk",
+          "tableFrom": "plan_prestaciones",
+          "columnsFrom": [
+            "registro_realizacion_id"
+          ],
+          "tableTo": "registros_clinicos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "plan_prestaciones_pieza_fdi": {
+          "name": "plan_prestaciones_pieza_fdi",
+          "value": "\"plan_prestaciones\".\"pieza\" is null or ((pieza / 10 between 1 and 4 and pieza % 10 between 1 and 8) or (pieza / 10 between 5 and 8 and pieza % 10 between 1 and 5))"
+        },
+        "plan_prestaciones_realizada": {
+          "name": "plan_prestaciones_realizada",
+          "value": "\"plan_prestaciones\".\"estado\" <> 'realizada' or \"plan_prestaciones\".\"registro_realizacion_id\" is not null"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.plantillas_consentimiento": {
+      "name": "plantillas_consentimiento",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "procedimiento": {
+          "name": "procedimiento",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "version": {
+          "name": "version",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "texto": {
+          "name": "texto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "vigente": {
+          "name": "vigente",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "plantillas_consentimiento_version": {
+          "name": "plantillas_consentimiento_version",
+          "columns": [
+            "procedimiento",
+            "version"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.presupuesto_items": {
+      "name": "presupuesto_items",
+      "schema": "",
+      "columns": {
+        "presupuesto_id": {
+          "name": "presupuesto_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "plan_prestacion_id": {
+          "name": "plan_prestacion_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "importe": {
+          "name": "importe",
+          "type": "numeric(12, 2)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "presupuesto_items_presupuesto_id_presupuestos_id_fk": {
+          "name": "presupuesto_items_presupuesto_id_presupuestos_id_fk",
+          "tableFrom": "presupuesto_items",
+          "columnsFrom": [
+            "presupuesto_id"
+          ],
+          "tableTo": "presupuestos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "presupuesto_items_plan_prestacion_id_plan_prestaciones_id_fk": {
+          "name": "presupuesto_items_plan_prestacion_id_plan_prestaciones_id_fk",
+          "tableFrom": "presupuesto_items",
+          "columnsFrom": [
+            "plan_prestacion_id"
+          ],
+          "tableTo": "plan_prestaciones",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "presupuesto_items_presupuesto_id_plan_prestacion_id_pk": {
+          "name": "presupuesto_items_presupuesto_id_plan_prestacion_id_pk",
+          "columns": [
+            "presupuesto_id",
+            "plan_prestacion_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.presupuestos": {
+      "name": "presupuestos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "entregado_en": {
+          "name": "entregado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "respuesta": {
+          "name": "respuesta",
+          "type": "respuesta_presupuesto",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pendiente'"
+        },
+        "respondido_en": {
+          "name": "respondido_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_por": {
+          "name": "creado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "presupuestos_paciente_id_pacientes_id_fk": {
+          "name": "presupuestos_paciente_id_pacientes_id_fk",
+          "tableFrom": "presupuestos",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "presupuestos_creado_por_usuarios_id_fk": {
+          "name": "presupuestos_creado_por_usuarios_id_fk",
+          "tableFrom": "presupuestos",
+          "columnsFrom": [
+            "creado_por"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profesional_especialidades": {
+      "name": "profesional_especialidades",
+      "schema": "",
+      "columns": {
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "especialidad": {
+          "name": "especialidad",
+          "type": "especialidad",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "profesional_especialidades_usuario_id_profesionales_usuario_id_fk": {
+          "name": "profesional_especialidades_usuario_id_profesionales_usuario_id_fk",
+          "tableFrom": "profesional_especialidades",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "profesional_especialidades_usuario_id_especialidad_pk": {
+          "name": "profesional_especialidades_usuario_id_especialidad_pk",
+          "columns": [
+            "usuario_id",
+            "especialidad"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profesionales": {
+      "name": "profesionales",
+      "schema": "",
+      "columns": {
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "matricula": {
+          "name": "matricula",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "profesionales_usuario_id_usuarios_id_fk": {
+          "name": "profesionales_usuario_id_usuarios_id_fk",
+          "tableFrom": "profesionales",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "profesionales_matricula_unique": {
+          "name": "profesionales_matricula_unique",
+          "columns": [
+            "matricula"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.registros_clinicos": {
+      "name": "registros_clinicos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "historia_clinica_id": {
+          "name": "historia_clinica_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "secuencia": {
+          "name": "secuencia",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "tipo": {
+          "name": "tipo",
+          "type": "tipo_registro_clinico",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "contenido": {
+          "name": "contenido",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "autor_id": {
+          "name": "autor_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "especialidad": {
+          "name": "especialidad",
+          "type": "especialidad",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "turno_id": {
+          "name": "turno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "enmienda_de": {
+          "name": "enmienda_de",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "firmado_en": {
+          "name": "firmado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash_anterior": {
+          "name": "hash_anterior",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "hash": {
+          "name": "hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metodo_firma": {
+          "name": "metodo_firma",
+          "type": "metodo_firma",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'electronica'"
+        },
+        "firma_digital": {
+          "name": "firma_digital",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "registros_clinicos_historia_clinica_id_historias_clinicas_id_fk": {
+          "name": "registros_clinicos_historia_clinica_id_historias_clinicas_id_fk",
+          "tableFrom": "registros_clinicos",
+          "columnsFrom": [
+            "historia_clinica_id"
+          ],
+          "tableTo": "historias_clinicas",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "registros_clinicos_autor_id_profesionales_usuario_id_fk": {
+          "name": "registros_clinicos_autor_id_profesionales_usuario_id_fk",
+          "tableFrom": "registros_clinicos",
+          "columnsFrom": [
+            "autor_id"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "registros_clinicos_turno_id_turnos_id_fk": {
+          "name": "registros_clinicos_turno_id_turnos_id_fk",
+          "tableFrom": "registros_clinicos",
+          "columnsFrom": [
+            "turno_id"
+          ],
+          "tableTo": "turnos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "registros_clinicos_enmienda_de_registros_clinicos_id_fk": {
+          "name": "registros_clinicos_enmienda_de_registros_clinicos_id_fk",
+          "tableFrom": "registros_clinicos",
+          "columnsFrom": [
+            "enmienda_de"
+          ],
+          "tableTo": "registros_clinicos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "registros_clinicos_hash_unique": {
+          "name": "registros_clinicos_hash_unique",
+          "columns": [
+            "hash"
+          ],
+          "nullsNotDistinct": false
+        },
+        "registros_clinicos_secuencia_unica": {
+          "name": "registros_clinicos_secuencia_unica",
+          "columns": [
+            "historia_clinica_id",
+            "secuencia"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "registros_clinicos_enmienda": {
+          "name": "registros_clinicos_enmienda",
+          "value": "(\"registros_clinicos\".\"tipo\" = 'enmienda') = (\"registros_clinicos\".\"enmienda_de\" is not null)"
+        },
+        "registros_clinicos_hash_hex": {
+          "name": "registros_clinicos_hash_hex",
+          "value": "\"registros_clinicos\".\"hash\" ~ '^[0-9a-f]{64}$' and \"registros_clinicos\".\"hash_anterior\" ~ '^[0-9a-f]{64}$'"
+        },
+        "registros_clinicos_firma_digital": {
+          "name": "registros_clinicos_firma_digital",
+          "value": "(\"registros_clinicos\".\"metodo_firma\" = 'digital') = (\"registros_clinicos\".\"firma_digital\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sesiones": {
+      "name": "sesiones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "char(64)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consultorio_id": {
+          "name": "consultorio_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "verificada_en": {
+          "name": "verificada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ultimo_uso_en": {
+          "name": "ultimo_uso_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "cerrada_en": {
+          "name": "cerrada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "motivo_cierre": {
+          "name": "motivo_cierre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ip": {
+          "name": "ip",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_agent": {
+          "name": "user_agent",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "sesiones_usuario_idx": {
+          "name": "sesiones_usuario_idx",
+          "columns": [
+            {
+              "expression": "usuario_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "cerrada_en",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "sesiones_usuario_id_usuarios_id_fk": {
+          "name": "sesiones_usuario_id_usuarios_id_fk",
+          "tableFrom": "sesiones",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "sesiones_consultorio_id_consultorios_id_fk": {
+          "name": "sesiones_consultorio_id_consultorios_id_fk",
+          "tableFrom": "sesiones",
+          "columnsFrom": [
+            "consultorio_id"
+          ],
+          "tableTo": "consultorios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "sesiones_miembro_fk": {
+          "name": "sesiones_miembro_fk",
+          "tableFrom": "sesiones",
+          "columnsFrom": [
+            "consultorio_id",
+            "usuario_id"
+          ],
+          "tableTo": "consultorio_miembros",
+          "columnsTo": [
+            "consultorio_id",
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sesiones_token_hash_unique": {
+          "name": "sesiones_token_hash_unique",
+          "columns": [
+            "token_hash"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "sesiones_token_hash_hex": {
+          "name": "sesiones_token_hash_hex",
+          "value": "\"sesiones\".\"token_hash\" ~ '^[0-9a-f]{64}$'"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.sillones": {
+      "name": "sillones",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "sillones_nombre_unique": {
+          "name": "sillones_nombre_unique",
+          "columns": [
+            "nombre"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.turno_eventos": {
+      "name": "turno_eventos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "turno_id": {
+          "name": "turno_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado_anterior": {
+          "name": "estado_anterior",
+          "type": "estado_turno",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "estado_nuevo": {
+          "name": "estado_nuevo",
+          "type": "estado_turno",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nota": {
+          "name": "nota",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "turno_eventos_turno_id_turnos_id_fk": {
+          "name": "turno_eventos_turno_id_turnos_id_fk",
+          "tableFrom": "turno_eventos",
+          "columnsFrom": [
+            "turno_id"
+          ],
+          "tableTo": "turnos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "turno_eventos_usuario_id_usuarios_id_fk": {
+          "name": "turno_eventos_usuario_id_usuarios_id_fk",
+          "tableFrom": "turno_eventos",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.turnos": {
+      "name": "turnos",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "paciente_id": {
+          "name": "paciente_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "profesional_id": {
+          "name": "profesional_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sillon_id": {
+          "name": "sillon_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "inicio": {
+          "name": "inicio",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fin": {
+          "name": "fin",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "estado": {
+          "name": "estado",
+          "type": "estado_turno",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'reservado'"
+        },
+        "motivo": {
+          "name": "motivo",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "reprograma_a": {
+          "name": "reprograma_a",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "creado_por": {
+          "name": "creado_por",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "turnos_profesional_inicio_idx": {
+          "name": "turnos_profesional_inicio_idx",
+          "columns": [
+            {
+              "expression": "profesional_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "inicio",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        },
+        "turnos_paciente_idx": {
+          "name": "turnos_paciente_idx",
+          "columns": [
+            {
+              "expression": "paciente_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "with": {},
+          "method": "btree",
+          "concurrently": false
+        }
+      },
+      "foreignKeys": {
+        "turnos_paciente_id_pacientes_id_fk": {
+          "name": "turnos_paciente_id_pacientes_id_fk",
+          "tableFrom": "turnos",
+          "columnsFrom": [
+            "paciente_id"
+          ],
+          "tableTo": "pacientes",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "turnos_profesional_id_profesionales_usuario_id_fk": {
+          "name": "turnos_profesional_id_profesionales_usuario_id_fk",
+          "tableFrom": "turnos",
+          "columnsFrom": [
+            "profesional_id"
+          ],
+          "tableTo": "profesionales",
+          "columnsTo": [
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "turnos_sillon_id_sillones_id_fk": {
+          "name": "turnos_sillon_id_sillones_id_fk",
+          "tableFrom": "turnos",
+          "columnsFrom": [
+            "sillon_id"
+          ],
+          "tableTo": "sillones",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "turnos_reprograma_a_turnos_id_fk": {
+          "name": "turnos_reprograma_a_turnos_id_fk",
+          "tableFrom": "turnos",
+          "columnsFrom": [
+            "reprograma_a"
+          ],
+          "tableTo": "turnos",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "turnos_creado_por_usuarios_id_fk": {
+          "name": "turnos_creado_por_usuarios_id_fk",
+          "tableFrom": "turnos",
+          "columnsFrom": [
+            "creado_por"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "turnos_fin_despues_de_inicio": {
+          "name": "turnos_fin_despues_de_inicio",
+          "value": "\"turnos\".\"fin\" > \"turnos\".\"inicio\""
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.usuario_roles": {
+      "name": "usuario_roles",
+      "schema": "",
+      "columns": {
+        "consultorio_id": {
+          "name": "consultorio_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "usuario_id": {
+          "name": "usuario_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rol": {
+          "name": "rol",
+          "type": "rol",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "usuario_roles_consultorio_id_consultorios_id_fk": {
+          "name": "usuario_roles_consultorio_id_consultorios_id_fk",
+          "tableFrom": "usuario_roles",
+          "columnsFrom": [
+            "consultorio_id"
+          ],
+          "tableTo": "consultorios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "usuario_roles_usuario_id_usuarios_id_fk": {
+          "name": "usuario_roles_usuario_id_usuarios_id_fk",
+          "tableFrom": "usuario_roles",
+          "columnsFrom": [
+            "usuario_id"
+          ],
+          "tableTo": "usuarios",
+          "columnsTo": [
+            "id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        },
+        "usuario_roles_miembro_fk": {
+          "name": "usuario_roles_miembro_fk",
+          "tableFrom": "usuario_roles",
+          "columnsFrom": [
+            "consultorio_id",
+            "usuario_id"
+          ],
+          "tableTo": "consultorio_miembros",
+          "columnsTo": [
+            "consultorio_id",
+            "usuario_id"
+          ],
+          "onUpdate": "no action",
+          "onDelete": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "usuario_roles_consultorio_id_usuario_id_rol_pk": {
+          "name": "usuario_roles_consultorio_id_usuario_id_rol_pk",
+          "columns": [
+            "consultorio_id",
+            "usuario_id",
+            "rol"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.usuarios": {
+      "name": "usuarios",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "email": {
+          "name": "email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nombre": {
+          "name": "nombre",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "apellido": {
+          "name": "apellido",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "activo": {
+          "name": "activo",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": true
+        },
+        "creado_en": {
+          "name": "creado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "clave_hash": {
+          "name": "clave_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "clave_cambiada_en": {
+          "name": "clave_cambiada_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_secreto": {
+          "name": "totp_secreto",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_confirmado_en": {
+          "name": "totp_confirmado_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_ultimo_paso": {
+          "name": "totp_ultimo_paso",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_pendiente": {
+          "name": "totp_pendiente",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "totp_pendiente_en": {
+          "name": "totp_pendiente_en",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "usuarios_email_unique": {
+          "name": "usuarios_email_unique",
+          "columns": [
+            "email"
+          ],
+          "nullsNotDistinct": false
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "usuarios_email_normalizado": {
+          "name": "usuarios_email_normalizado",
+          "value": "\"usuarios\".\"email\" = lower(btrim(\"usuarios\".\"email\"))"
+        },
+        "usuarios_totp_confirmado": {
+          "name": "usuarios_totp_confirmado",
+          "value": "(\"usuarios\".\"totp_secreto\" is null) = (\"usuarios\".\"totp_confirmado_en\" is null)"
+        }
+      },
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.ambito_adjunto": {
+      "name": "ambito_adjunto",
+      "schema": "public",
+      "values": [
+        "administrativo",
+        "clinico"
+      ]
+    },
+    "public.canal_contacto": {
+      "name": "canal_contacto",
+      "schema": "public",
+      "values": [
+        "llamada",
+        "whatsapp",
+        "instagram",
+        "email",
+        "presencial"
+      ]
+    },
+    "public.cara_dental": {
+      "name": "cara_dental",
+      "schema": "public",
+      "values": [
+        "M",
+        "D",
+        "V",
+        "L",
+        "O"
+      ]
+    },
+    "public.especialidad": {
+      "name": "especialidad",
+      "schema": "public",
+      "values": [
+        "odontologia_general",
+        "odontopediatria",
+        "endodoncia",
+        "ortodoncia",
+        "periodoncia",
+        "cirugia_implantes",
+        "protesis"
+      ]
+    },
+    "public.estado_marca": {
+      "name": "estado_marca",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "realizado",
+        "preexistente"
+      ]
+    },
+    "public.estado_pendiente": {
+      "name": "estado_pendiente",
+      "schema": "public",
+      "values": [
+        "abierto",
+        "en_curso",
+        "resuelto",
+        "descartado"
+      ]
+    },
+    "public.estado_prestacion": {
+      "name": "estado_prestacion",
+      "schema": "public",
+      "values": [
+        "propuesta",
+        "aceptada",
+        "autorizada",
+        "realizada",
+        "cancelada"
+      ]
+    },
+    "public.estado_turno": {
+      "name": "estado_turno",
+      "schema": "public",
+      "values": [
+        "reservado",
+        "confirmado",
+        "en_sala",
+        "atendido",
+        "ausente",
+        "cancelado",
+        "reprogramado"
+      ]
+    },
+    "public.hallazgo_dental": {
+      "name": "hallazgo_dental",
+      "schema": "public",
+      "values": [
+        "caries",
+        "restauracion",
+        "sellador",
+        "fractura",
+        "endodoncia",
+        "perno",
+        "corona",
+        "extraccion",
+        "ausente",
+        "implante",
+        "protesis_fija",
+        "protesis_removible"
+      ]
+    },
+    "public.metodo_firma": {
+      "name": "metodo_firma",
+      "schema": "public",
+      "values": [
+        "electronica",
+        "digital"
+      ]
+    },
+    "public.motivo_enlace_acceso": {
+      "name": "motivo_enlace_acceso",
+      "schema": "public",
+      "values": [
+        "primer_ingreso",
+        "blanqueo_clave",
+        "blanqueo_verificacion"
+      ]
+    },
+    "public.respuesta_presupuesto": {
+      "name": "respuesta_presupuesto",
+      "schema": "public",
+      "values": [
+        "pendiente",
+        "aceptado",
+        "aceptado_parcial",
+        "rechazado"
+      ]
+    },
+    "public.resultado_intento_ingreso": {
+      "name": "resultado_intento_ingreso",
+      "schema": "public",
+      "values": [
+        "clave_incorrecta",
+        "codigo_incorrecto",
+        "clave_correcta",
+        "ingreso",
+        "bloqueado"
+      ]
+    },
+    "public.rol": {
+      "name": "rol",
+      "schema": "public",
+      "values": [
+        "secretaria",
+        "profesional",
+        "administrador"
+      ]
+    },
+    "public.tipo_alerta_medica": {
+      "name": "tipo_alerta_medica",
+      "schema": "public",
+      "values": [
+        "alergia",
+        "medicacion",
+        "condicion"
+      ]
+    },
+    "public.tipo_pendiente": {
+      "name": "tipo_pendiente",
+      "schema": "public",
+      "values": [
+        "tratamiento_sin_turno",
+        "presupuesto_sin_respuesta",
+        "ausente_sin_reprogramar",
+        "control_periodico",
+        "conversacion_sin_respuesta",
+        "manual"
+      ]
+    },
+    "public.tipo_registro_clinico": {
+      "name": "tipo_registro_clinico",
+      "schema": "public",
+      "values": [
+        "anamnesis",
+        "evolucion",
+        "diagnostico",
+        "odontograma",
+        "plan_tratamiento",
+        "consentimiento",
+        "adjunto",
+        "enmienda"
+      ]
+    }
+  },
+  "schemas": {},
+  "views": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

@@ -10,7 +10,9 @@ Este documento es una matriz para revisar con un abogado especializado en derech
 | Firma digital o electrónica | Ley 25.506; Dec. 1089/2012 art. 13; Dec. 393/2023 | Hoy, firma electrónica. Columnas preparadas para firma digital CMS | `registros_clinicos.metodo_firma` |
 | Una sola historia clínica por paciente | Ley 26.529 art. 17 | `historias_clinicas.paciente_id` único | `src/db/schema.ts` |
 | Acceso restringido | Ley 26.529 arts. 2 y 13; secreto profesional | Permisos por rol. La secretaria no accede a la historia clínica | `src/domain/permisos/permisos.ts` |
-| Trazabilidad de accesos | Ley 27.706 (trazabilidad) | Auditoría de solo agregar: quién vio, firmó o exportó | `auditoria_accesos`, `abrirHistoriaClinica` |
+| Cada persona con su propio usuario, identificada de forma fuerte | Ley 26.529 art. 13 (acceso solo de personas autorizadas); Ley 25.506 (la firma electrónica tiene que poder atribuirse al firmante) | Usuarios personales (nunca compartidos) con contraseña y verificación en dos pasos obligatoria. Sesiones que se cierran tras 12 horas sin uso. Bloqueo ante intentos repetidos | `src/server/acceso/`, `docs/arquitectura.md` ("Inicio de sesión") |
+| Medidas de seguridad sobre datos personales | Ley 25.326 art. 9; Resolución AAIP 47/2018 (medidas recomendadas, a confirmar con el abogado) | Contraseñas con scrypt, clave de la app cifrada, tokens de sesión y códigos de recuperación guardados como hash, cookies `httpOnly` y `secure`. Altas, bajas, blanqueos y cambios de roles auditados. Nada se borra: los usuarios se desactivan | `src/server/acceso/`, `drizzle/0004_inicio_de_sesion_sql.sql` |
+| Trazabilidad de accesos | Ley 27.706 (trazabilidad) | Auditoría de solo agregar: quién vio, firmó o exportó, y cada ingreso y salida del sistema con IP y navegador | `auditoria_accesos`, `abrirHistoriaClinica`, `ingresarConCodigo` |
 | Conservación mínima de 10 años | Ley 26.529 art. 18 | Nada se borra. Adjuntos con Object Lock (por implementar) | Triggers; `docs/arquitectura.md` |
 | Copia al paciente en 48 horas | Ley 26.529 art. 14 | Exportación a PDF firmado (por implementar) | Permiso `hc.exportar` |
 | Consentimiento informado escrito | Ley 26.529 arts. 5 a 7 | Plantillas versionadas e inmutables. Consentimiento firmado como registro clínico | `plantillas_consentimiento` |
@@ -25,6 +27,8 @@ Este documento es una matriz para revisar con un abogado especializado en derech
 - [ ] Inscribir la base de datos de pacientes ante la AAIP.
 - [ ] Redactar con el abogado los modelos de consentimiento por procedimiento, incluidos los de menores.
 - [ ] Acuerdo de confidencialidad firmado por cada secretaria.
+- [ ] Cada persona usa su propio usuario: nunca se comparten contraseñas ni el celular con la app de autenticación. Al irse alguien del consultorio, se lo desactiva ese mismo día.
+- [ ] Cada persona guarda sus códigos de recuperación fuera del celular (en papel, en un lugar seguro).
 - [ ] Definir qué pasa con las historias clínicas en papel: se escanean y los originales se conservan.
 - [ ] Revisión legal del sistema antes de usarlo con pacientes reales.
 

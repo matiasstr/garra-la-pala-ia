@@ -1,10 +1,24 @@
 import { count } from 'drizzle-orm';
+import { hashearContrasena } from '../domain/acceso/contrasenas';
 import type { EstadoTurno } from '../domain/agenda/turnos';
 import { sumarDias } from '../lib/fechas';
+import { cifrarSecreto } from '../server/acceso/secretos';
 import { altaPaciente } from '../server/pacientes';
 import { cambiarEstadoTurno, crearTurno } from '../server/agenda';
-import { alertasMedicas, financiadores, notasAdministrativas, profesionalEspecialidades, profesionales, sillones, usuarioRoles, usuarios } from './schema';
+import {
+  alertasMedicas,
+  consultorioMiembros,
+  consultorios,
+  financiadores,
+  notasAdministrativas,
+  profesionalEspecialidades,
+  profesionales,
+  sillones,
+  usuarioRoles,
+  usuarios,
+} from './schema';
 import type { BaseDeDatos } from './tipos';
+import { CLAVE_DE_PRUEBA, SECRETO_TOTP_DE_PRUEBA } from './acceso-de-prueba';
 
 /**
  * Datos de prueba para desarrollo y demos. Todas las personas son inventadas.
@@ -14,21 +28,33 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   const [{ cantidad } = { cantidad: 0 }] = await db.select({ cantidad: count() }).from(usuarios);
   if (cantidad > 0) return false;
 
+  const [consultorio] = await db.insert(consultorios).values({ nombre: 'Micaela Massa Odontología' }).returning();
+  if (!consultorio) throw new Error('No se pudo crear el consultorio de prueba.');
+
+  // Cada usuario con su propia sal, aunque la contraseña de prueba sea la misma.
+  const acceso = async () => ({
+    claveHash: await hashearContrasena(CLAVE_DE_PRUEBA),
+    claveCambiadaEn: new Date(),
+    totpSecreto: cifrarSecreto(SECRETO_TOTP_DE_PRUEBA),
+    totpConfirmadoEn: new Date(),
+  });
+  const [accesoMica, accesoLaura, accesoSofia] = await Promise.all([acceso(), acceso(), acceso()]);
   const [mica, laura, sofia] = await db
     .insert(usuarios)
     .values([
-      { email: 'mica@consultorio.local', nombre: 'Micaela', apellido: 'Massa' },
-      { email: 'laura@consultorio.local', nombre: 'Laura', apellido: 'Benítez' },
-      { email: 'sofia@consultorio.local', nombre: 'Sofía', apellido: 'Gómez' },
+      { email: 'mica@consultorio.local', nombre: 'Micaela', apellido: 'Massa', ...accesoMica },
+      { email: 'laura@consultorio.local', nombre: 'Laura', apellido: 'Benítez', ...accesoLaura },
+      { email: 'sofia@consultorio.local', nombre: 'Sofía', apellido: 'Gómez', ...accesoSofia },
     ])
     .returning();
   if (!mica || !laura || !sofia) throw new Error('No se pudieron crear los usuarios de prueba.');
 
+  await db.insert(consultorioMiembros).values([mica, laura, sofia].map((u) => ({ consultorioId: consultorio.id, usuarioId: u.id })));
   await db.insert(usuarioRoles).values([
-    { usuarioId: mica.id, rol: 'profesional' },
-    { usuarioId: mica.id, rol: 'administrador' },
-    { usuarioId: laura.id, rol: 'profesional' },
-    { usuarioId: sofia.id, rol: 'secretaria' },
+    { consultorioId: consultorio.id, usuarioId: mica.id, rol: 'profesional' },
+    { consultorioId: consultorio.id, usuarioId: mica.id, rol: 'administrador' },
+    { consultorioId: consultorio.id, usuarioId: laura.id, rol: 'profesional' },
+    { consultorioId: consultorio.id, usuarioId: sofia.id, rol: 'secretaria' },
   ]);
   await db.insert(profesionales).values([
     { usuarioId: mica.id, matricula: 'MP 00001 (prueba)' },
