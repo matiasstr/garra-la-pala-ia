@@ -1,11 +1,10 @@
 import { revalidatePath } from 'next/cache';
 import { baseDeDatos } from '@/db/client';
 import { puede, puedeFirmarRegistroClinico } from '@/domain/permisos/permisos';
-import { contextoDelPedido } from '@/server/contexto-pedido';
 import { almacenDelSistema } from '@/server/entorno';
 import { ErrorDePermiso, ErrorDeValidacion } from '@/server/errores';
 import { TAMANIO_MAXIMO_ADJUNTO, subirAdjuntoClinico } from '@/server/hc/adjuntos';
-import { usuarioActual } from '@/server/sesion';
+import { datosDelPedido, usuarioActual } from '@/server/sesion';
 
 /**
  * Sube un adjunto clínico y lo firma. Es una ruta y no una acción de servidor
@@ -57,7 +56,7 @@ export async function POST(pedido: Request, { params }: { params: Promise<{ id: 
         pin: pedido.headers.get('x-pin-firma') ?? '',
         sha256Declarado: pedido.headers.get('x-adjunto-sha256'),
       },
-      await contextoDelPedido(),
+      await datosDelPedido(),
     );
     if (!resultado.ok) return respuesta(200, resultado.errores);
     revalidatePath(`/pacientes/${id}/historia-clinica`);

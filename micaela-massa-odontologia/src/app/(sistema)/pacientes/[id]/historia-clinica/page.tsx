@@ -10,9 +10,8 @@ import { calcularOdontograma } from '@/domain/odontograma/estado';
 import { puede, puedeFirmarRegistroClinico } from '@/domain/permisos/permisos';
 import { NOMBRE_ESPECIALIDAD } from '@/domain/permisos/roles';
 import { capitalizar, esFechaValida, fechaDe, formatoFechaCorta, formatoFechaLarga, formatoHora, hoyEnArgentina, rangoDelDia } from '@/lib/fechas';
-import { contextoDelPedido } from '@/server/contexto-pedido';
 import { verHistoriaClinica, type VistaHistoriaClinica } from '@/server/hc/vista';
-import { usuarioActual } from '@/server/sesion';
+import { datosDelPedido, usuarioActual } from '@/server/sesion';
 import type { FirmaDisponible, PacienteParaFirmar } from './DialogoFirma';
 import { LineaDeTiempo } from './LineaDeTiempo';
 import { NuevaEvolucion } from './NuevaEvolucion';
@@ -55,7 +54,7 @@ export default async function PaginaHistoriaClinica({ params, searchParams }: Pr
 
   const hoy = hoyEnArgentina();
   const fecha = parametros.fecha && esFechaValida(parametros.fecha) && parametros.fecha <= hoy ? parametros.fecha : null;
-  const vista = await verHistoriaClinica(await baseDeDatos(), usuario, id, { fecha, turnoId: parametros.turno }, await contextoDelPedido());
+  const vista = await verHistoriaClinica(await baseDeDatos(), usuario, id, { fecha, turnoId: parametros.turno }, await datosDelPedido());
   if (!vista) notFound();
 
   const { paciente } = vista;

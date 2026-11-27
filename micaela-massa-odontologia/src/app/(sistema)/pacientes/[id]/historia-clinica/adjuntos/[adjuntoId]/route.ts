@@ -1,9 +1,8 @@
 import { baseDeDatos } from '@/db/client';
-import { contextoDelPedido } from '@/server/contexto-pedido';
 import { almacenDelSistema } from '@/server/entorno';
 import { ErrorDePermiso } from '@/server/errores';
 import { leerAdjuntoClinico } from '@/server/hc/adjuntos';
-import { usuarioActual } from '@/server/sesion';
+import { datosDelPedido, usuarioActual } from '@/server/sesion';
 
 const texto = (estado: number, mensaje: string) =>
   new Response(mensaje, { status: estado, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
@@ -22,7 +21,7 @@ export async function GET(pedido: Request, { params }: { params: Promise<{ id: s
       almacenDelSistema(),
       await usuarioActual(),
       { pacienteId: id, adjuntoId, modo: descargar ? 'descargar' : 'ver' },
-      await contextoDelPedido(),
+      await datosDelPedido(),
     );
     if (lectura.estado === 'no_existe') return texto(404, 'No se encontró el archivo.');
     if (lectura.estado === 'alterado') return texto(409, 'El archivo guardado no coincide con la huella que se firmó: no se muestra. Avisá a la administración.');

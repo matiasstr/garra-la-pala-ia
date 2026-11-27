@@ -57,7 +57,7 @@ Implementado sin dependencias nuevas, con `node:crypto`. Código: `src/domain/ac
 | Demo protegida | Con `DEMO_CLAVE`, el mismo proxy pide usuario y contraseña del navegador (HTTP Basic) en todo el sitio, también los archivos estáticos. |
 | Auditoría | Ingresos, salidas, cambios de contraseña y de verificación, altas, cambios de roles, desactivaciones y blanqueos quedan en `auditoria_accesos`, con IP y navegador. |
 
-La IP sale del último valor de `X-Forwarded-For`, el que agrega el proxy propio. En producción, el sistema tiene que estar detrás de un proxy (nginx, Caddy, el balanceador del hosting) que agregue ese encabezado; si no, una IP inventada por el navegador esquiva el bloqueo por IP (el bloqueo por email sigue funcionando).
+**IP del pedido.** Una sola función la obtiene para todo el sistema (`datosDeEncabezados` en `src/server/pedido.ts`, que se usa a través de `datosDelPedido()`): los bloqueos de ingreso, la auditoría de accesos y la de la historia clínica guardan la misma IP. Es el último valor de `X-Forwarded-For`, porque los anteriores los puede escribir cualquiera. **En producción hace falta un proxy de confianza delante del sistema que fije ese encabezado:** en Vercel lo hace la plataforma (reemplaza lo que manda el navegador); con nginx, Caddy o el balanceador del hosting hay que configurarlo (en nginx, `proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;`). Sin ese proxy, Next.js deja pasar el encabezado tal como lo manda el navegador: la IP de la auditoría se puede inventar, y alguien podría hacerse pasar por la IP del consultorio para bloquearla (los bloqueos por email y por email e IP siguen funcionando).
 
 ## Varios consultorios
 

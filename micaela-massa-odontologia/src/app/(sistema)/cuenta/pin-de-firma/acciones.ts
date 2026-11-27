@@ -3,10 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import type { EstadoFormulario } from '@/components/ui/estado-formulario';
 import { baseDeDatos } from '@/db/client';
-import { contextoDelPedido } from '@/server/contexto-pedido';
 import { ErrorDePermiso } from '@/server/errores';
 import { guardarPinDeFirma } from '@/server/hc/pin';
-import { usuarioActual } from '@/server/sesion';
+import { datosDelPedido, usuarioActual } from '@/server/sesion';
 
 const texto = (datos: FormData, campo: string) => String(datos.get(campo) ?? '');
 
@@ -16,7 +15,7 @@ export async function guardarPinAccion(_previo: EstadoFormulario, datos: FormDat
       await baseDeDatos(),
       await usuarioActual(),
       { actual: texto(datos, 'actual') || undefined, nuevo: texto(datos, 'nuevo'), repeticion: texto(datos, 'repeticion') },
-      await contextoDelPedido(),
+      await datosDelPedido(),
     );
     if (errores.length) return { ok: false, errores };
   } catch (error) {

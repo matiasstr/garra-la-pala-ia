@@ -6,6 +6,7 @@ import { baseDeDatos } from '../db/client';
 import { buscarSesion, politicaDeSesion, validarSesion } from './acceso/autenticacion';
 import type { DatosDelPedido } from './acceso/registro';
 import { modoDesarrollo } from './entorno';
+import { datosDeEncabezados, rutaInterna } from './pedido';
 import { cargarUsuario, listarUsuarios, type UsuarioSesion } from './usuarios';
 
 export const COOKIE_USUARIO_DESARROLLO = 'mm_usuario_desarrollo';
@@ -35,15 +36,12 @@ export async function tokenDeSesion(): Promise<string | null> {
 }
 
 /**
- * IP y navegador del pedido. La IP es el último valor de `X-Forwarded-For`, el
- * que agrega el proxy propio (o Next.js si no hay ninguno): los anteriores los
- * puede inventar cualquiera.
+ * IP y navegador del pedido actual. Es la única forma de obtenerlos en todo el
+ * sistema: la usan los bloqueos de ingreso, la auditoría de accesos y la de la
+ * historia clínica (ver `datosDeEncabezados`).
  */
 export async function datosDelPedido(): Promise<DatosDelPedido> {
-  const h = await headers();
-  const reenviada = h.get('x-forwarded-for')?.split(',').map((ip) => ip.trim()).filter(Boolean);
-  const ip = reenviada?.at(-1) ?? h.get('x-real-ip') ?? null;
-  return { ip: ip ? ip.replace(/^::ffff:/, '').slice(0, 64) : null, userAgent: h.get('user-agent')?.slice(0, 300) ?? null };
+  return datosDeEncabezados(await headers());
 }
 
 /**
@@ -60,11 +58,8 @@ export async function urlPublica(ruta: string): Promise<string> {
   return `${protocolo}://${host}${ruta}`;
 }
 
-/** Solo rutas internas: evita que `?volver=` mande a otro sitio. */
-export function rutaInterna(ruta: string | null | undefined, porDefecto = '/agenda'): string {
-  if (!ruta || !ruta.startsWith('/') || ruta.startsWith('//') || ruta.startsWith('/\\') || ruta.startsWith('/ingresar')) return porDefecto;
-  return ruta;
-}
+/** Solo rutas internas: evita que `?volver=` mande a otro sitio (ver `src/server/pedido.ts`). */
+export { rutaInterna };
 
 /** La sesión activa del pedido (con contraseña y código ya verificados), o null. */
 export const sesionActual = cache(async (): Promise<{ sesionId: string; usuario: UsuarioSesion } | null> => {

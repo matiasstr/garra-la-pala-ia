@@ -3,11 +3,10 @@
 import { revalidatePath } from 'next/cache';
 import type { EstadoFormulario } from '@/components/ui/estado-formulario';
 import { baseDeDatos } from '@/db/client';
-import { contextoDelPedido } from '@/server/contexto-pedido';
 import { ErrorDePermiso, ErrorDeValidacion } from '@/server/errores';
 import type { ResultadoFirma } from '@/server/hc/comun';
 import { descartarBorradorEvolucion, firmarCambiosOdontograma, firmarEnmienda, firmarEvolucion, guardarBorradorEvolucion } from '@/server/hc/evoluciones';
-import { usuarioActual } from '@/server/sesion';
+import { datosDelPedido, usuarioActual } from '@/server/sesion';
 
 const ruta = (pacienteId: string) => `/pacientes/${pacienteId}/historia-clinica`;
 
@@ -63,7 +62,7 @@ export async function firmarEvolucionAccion(
         await baseDeDatos(),
         await usuarioActual(),
         { pacienteId, texto: String(entrada.texto), pin: String(entrada.pin), turnoId: entrada.turnoId || null, especialidad: entrada.especialidad || null },
-        await contextoDelPedido(),
+        await datosDelPedido(),
       ),
     'Evolución firmada. Ya no se puede modificar.',
   );
@@ -72,7 +71,7 @@ export async function firmarEvolucionAccion(
 export async function firmarEnmiendaAccion(pacienteId: string, registroId: string, entrada: { texto: string; pin: string }): Promise<EstadoFormulario> {
   return ejecutar(
     pacienteId,
-    async () => firmarEnmienda(await baseDeDatos(), await usuarioActual(), { pacienteId, registroId, texto: String(entrada.texto), pin: String(entrada.pin) }, await contextoDelPedido()),
+    async () => firmarEnmienda(await baseDeDatos(), await usuarioActual(), { pacienteId, registroId, texto: String(entrada.texto), pin: String(entrada.pin) }, await datosDelPedido()),
     'Enmienda firmada.',
   );
 }
@@ -88,7 +87,7 @@ export async function firmarOdontogramaAccion(
         await baseDeDatos(),
         await usuarioActual(),
         { pacienteId, marcas: entrada.marcas, nota: entrada.nota ?? null, pin: String(entrada.pin), especialidad: entrada.especialidad || null },
-        await contextoDelPedido(),
+        await datosDelPedido(),
       ),
     'Cambios del odontograma firmados.',
   );
