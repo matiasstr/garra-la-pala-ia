@@ -64,6 +64,20 @@
       "when": 1795724209604,
       "tag": "0008_pendientes_sql",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795755102620,
+      "tag": "0009_inicio_de_sesion",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795755109299,
+      "tag": "0010_inicio_de_sesion_sql",
+      "breakpoints": true
     }
   ]
 }

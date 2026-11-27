@@ -1700,3 +1700,313 @@ a.boton {
     height: 40px !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Inicio de sesión y cuentas                                          */
+/* ------------------------------------------------------------------ */
+input[type='password'] {
+  font: inherit;
+  color: var(--texto);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 10px 12px;
+  min-height: 44px;
+  width: 100%;
+}
+
+input[readonly] {
+  background: var(--gris-suave);
+}
+
+.pantalla-acceso {
+  min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+
+.tarjeta-acceso {
+  width: 100%;
+  max-width: 460px;
+}
+
+.tarjeta-acceso h1 {
+  margin: 0;
+  font-size: 1.4rem;
+}
+
+.tarjeta-acceso h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.marca-acceso {
+  margin: 0 0 4px;
+  font-weight: 700;
+  color: var(--acento);
+}
+
+.nota-acceso {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.nota-acceso code,
+.clave-totp,
+.lista-codigos code,
+.enlace-acceso {
+  font-family: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+}
+
+.boton.ancho {
+  width: 100%;
+  justify-content: center;
+}
+
+.boton.peligro {
+  color: var(--rojo);
+  border-color: var(--rojo);
+}
+
+.aviso .boton.peligro {
+  background: var(--rojo);
+  color: #fff;
+}
+
+.boton-texto {
+  align-self: flex-start;
+  background: none;
+  border: 0;
+  padding: 8px 0;
+  min-height: 44px;
+  font: inherit;
+  font-size: 0.92rem;
+  color: var(--acento);
+  text-decoration: underline;
+  text-align: left;
+  cursor: pointer;
+}
+
+.boton-texto:focus-visible {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+
+input.campo-codigo {
+  font-size: 1.4rem;
+  letter-spacing: 0.3em;
+  font-variant-numeric: tabular-nums;
+  max-width: 240px;
+}
+
+.pasos-acceso {
+  margin: 0;
+  padding-left: 22px;
+}
+
+.pasos-acceso li + li {
+  margin-top: 12px;
+}
+
+.datos-clave {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 8px 0;
+}
+
+.datos-clave dt {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.datos-clave dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.clave-totp {
+  display: inline-block;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  background: var(--gris-suave);
+  border-radius: 6px;
+  padding: 2px 8px;
+  overflow-wrap: anywhere;
+}
+
+.lista-codigos {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.lista-codigos li {
+  background: var(--gris-suave);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+}
+
+.lista-codigos code {
+  font-size: 1.02rem;
+}
+
+.enlace-acceso {
+  font-size: 0.85rem;
+}
+
+/* Menú del usuario en el encabezado (funciona sin JavaScript con <details>). */
+.usuario-sesion {
+  justify-content: flex-end;
+}
+
+.menu-usuario {
+  position: relative;
+}
+
+.menu-usuario summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 999px;
+  cursor: pointer;
+  font-weight: 600;
+  max-width: 260px;
+}
+
+.menu-usuario summary::-webkit-details-marker {
+  display: none;
+}
+
+.menu-usuario-nombre {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menu-usuario summary:focus-visible {
+  outline: 3px solid var(--acento);
+  outline-offset: 2px;
+}
+
+.menu-usuario-opciones {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+  min-width: 230px;
+  max-width: calc(100vw - 32px);
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: var(--radio);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.12);
+}
+
+.menu-usuario-opciones p {
+  margin: 4px 12px 6px;
+  font-size: 0.82rem;
+}
+
+.menu-usuario-opciones a,
+.menu-usuario-opciones button {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--texto);
+  font: inherit;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.menu-usuario-opciones a:hover,
+.menu-usuario-opciones button:hover,
+.menu-usuario-opciones a:focus-visible,
+.menu-usuario-opciones button:focus-visible {
+  background: var(--acento-suave);
+}
+
+/* Administración de usuarios */
+.lista-usuarios {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lista-usuarios li + li {
+  border-top: 1px solid var(--borde);
+}
+
+.lista-usuarios a {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 4px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.lista-usuarios a:hover strong {
+  color: var(--acento);
+}
+
+.lista-usuarios-nombre {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.lista-usuarios-nombre .etiqueta {
+  align-self: flex-start;
+}
+
+.lista-usuarios-detalle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  font-size: 0.88rem;
+}
+
+.grupo-casillas {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+
+.grupo-casillas legend {
+  padding: 0;
+  margin-bottom: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--texto-suave);
+}
+
+.columnas-casillas {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0 12px;
+}

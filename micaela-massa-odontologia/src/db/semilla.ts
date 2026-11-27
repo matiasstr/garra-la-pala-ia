@@ -1,12 +1,16 @@
 import { count, eq } from 'drizzle-orm';
+import { hashearContrasena } from '../domain/acceso/contrasenas';
 import type { EstadoTurno } from '../domain/agenda/turnos';
 import type { UsuarioConRoles } from '../domain/permisos/permisos';
 import { fechaHoraArgentina, proximosDiasHabiles, sumarDias } from '../lib/fechas';
+import { cifrarSecreto } from '../server/acceso/secretos';
 import { altaPaciente } from '../server/pacientes';
 import { cambiarEstadoTurno, crearTurno } from '../server/agenda';
 import { registrarContacto, registrarIndicacionRegreso, sincronizarPendientes } from '../server/pendientes';
 import {
   alertasMedicas,
+  consultorioMiembros,
+  consultorios,
   financiadores,
   notasAdministrativas,
   pendientes,
@@ -19,6 +23,7 @@ import {
 } from './schema';
 import { sembrarHistoriasClinicas } from './semilla-historia-clinica';
 import type { BaseDeDatos } from './tipos';
+import { CLAVE_DE_PRUEBA, SECRETO_TOTP_DE_PRUEBA } from './acceso-de-prueba';
 
 /** Días hábiles, después de hoy, que la semilla llena de turnos. */
 export const DIAS_HABILES_CON_TURNOS = 10;
@@ -32,21 +37,33 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   const [{ cantidad } = { cantidad: 0 }] = await db.select({ cantidad: count() }).from(usuarios);
   if (cantidad > 0) return false;
 
+  const [consultorio] = await db.insert(consultorios).values({ nombre: 'Micaela Massa Odontología' }).returning();
+  if (!consultorio) throw new Error('No se pudo crear el consultorio de prueba.');
+
+  // Cada usuario con su propia sal, aunque la contraseña de prueba sea la misma.
+  const acceso = async () => ({
+    claveHash: await hashearContrasena(CLAVE_DE_PRUEBA),
+    claveCambiadaEn: new Date(),
+    totpSecreto: cifrarSecreto(SECRETO_TOTP_DE_PRUEBA),
+    totpConfirmadoEn: new Date(),
+  });
+  const [accesoMica, accesoLaura, accesoSofia] = await Promise.all([acceso(), acceso(), acceso()]);
   const [mica, laura, sofia] = await db
     .insert(usuarios)
     .values([
-      { email: 'mica@consultorio.local', nombre: 'Micaela', apellido: 'Massa' },
-      { email: 'laura@consultorio.local', nombre: 'Laura', apellido: 'Benítez' },
-      { email: 'sofia@consultorio.local', nombre: 'Sofía', apellido: 'Gómez' },
+      { email: 'mica@consultorio.local', nombre: 'Micaela', apellido: 'Massa', ...accesoMica },
+      { email: 'laura@consultorio.local', nombre: 'Laura', apellido: 'Benítez', ...accesoLaura },
+      { email: 'sofia@consultorio.local', nombre: 'Sofía', apellido: 'Gómez', ...accesoSofia },
     ])
     .returning();
   if (!mica || !laura || !sofia) throw new Error('No se pudieron crear los usuarios de prueba.');
 
+  await db.insert(consultorioMiembros).values([mica, laura, sofia].map((u) => ({ consultorioId: consultorio.id, usuarioId: u.id })));
   await db.insert(usuarioRoles).values([
-    { usuarioId: mica.id, rol: 'profesional' },
-    { usuarioId: mica.id, rol: 'administrador' },
-    { usuarioId: laura.id, rol: 'profesional' },
-    { usuarioId: sofia.id, rol: 'secretaria' },
+    { consultorioId: consultorio.id, usuarioId: mica.id, rol: 'profesional' },
+    { consultorioId: consultorio.id, usuarioId: mica.id, rol: 'administrador' },
+    { consultorioId: consultorio.id, usuarioId: laura.id, rol: 'profesional' },
+    { consultorioId: consultorio.id, usuarioId: sofia.id, rol: 'secretaria' },
   ]);
   await db.insert(profesionales).values([
     { usuarioId: mica.id, matricula: 'MP 00001 (prueba)' },
@@ -132,9 +149,13 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   await sembrarHistoriasClinicas(db, hoy, { mica: mica.id, laura: laura.id }, { juanPerez, ana, martina, diego });
 
   // Alguien de administración que no atiende ni hace recepción: sirve para ver qué no puede hacer.
-  const [carla] = await db.insert(usuarios).values({ email: 'administracion@consultorio.local', nombre: 'Carla', apellido: 'Díaz' }).returning();
+  const [carla] = await db
+    .insert(usuarios)
+    .values({ email: 'administracion@consultorio.local', nombre: 'Carla', apellido: 'Díaz', ...(await acceso()) })
+    .returning();
   if (!carla) throw new Error('No se pudo crear el usuario de administración.');
-  await db.insert(usuarioRoles).values({ usuarioId: carla.id, rol: 'administrador' });
+  await db.insert(consultorioMiembros).values({ consultorioId: consultorio.id, usuarioId: carla.id });
+  await db.insert(usuarioRoles).values({ consultorioId: consultorio.id, usuarioId: carla.id, rol: 'administrador' });
 
   await sembrarSeguimiento(db, hoy, { secretaria, mica: { id: mica.id, roles: ['profesional', 'administrador'] as const, activo: true }, laura: laura.id, alta, turno, sillon1: sillon1.id, sillon2: sillon2.id, osde: osde.id, particular: particular.id });
 

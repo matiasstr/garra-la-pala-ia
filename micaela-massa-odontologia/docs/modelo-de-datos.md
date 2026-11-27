@@ -4,7 +4,12 @@ El esquema está en `src/db/schema.ts` y las migraciones en `drizzle/`. Las tabl
 
 ```mermaid
 erDiagram
-  usuarios ||--o{ usuario_roles : tiene
+  consultorios ||--o{ consultorio_miembros : "tiene (sin borrado)"
+  usuarios ||--o{ consultorio_miembros : "trabaja en"
+  consultorio_miembros ||--o{ usuario_roles : "con roles"
+  usuarios ||--o{ sesiones : abre
+  usuarios ||--o{ codigos_recuperacion : "un solo uso"
+  usuarios ||--o{ enlaces_acceso : "primer ingreso y blanqueos"
   usuarios ||--o| profesionales : "es (si tiene matrícula)"
   profesionales ||--o{ profesional_especialidades : tiene
 
@@ -42,6 +47,7 @@ erDiagram
 | Agenda y seguimiento | `turnos`, `turno_eventos`, `indicaciones_regreso`, `pendientes`, `pendiente_acciones` | Secretarias y profesionales |
 | Plan y presupuestos | `plan_prestaciones`, `presupuestos`, `nomenclador_prestaciones`, `aranceles`, `financiadores` | Profesionales indican; secretarias presupuestan |
 | Auditoría | `auditoria_accesos` 🔒 | Administrador |
+| Acceso | `consultorios`, `consultorio_miembros`, `usuario_roles`, `sesiones`, `codigos_recuperacion`, `enlaces_acceso`, `intentos_ingreso` | Administrador (usuarios de su consultorio); cada persona, lo suyo desde "Mi cuenta" |
 
 ## Cómo se firma un registro
 
@@ -90,3 +96,13 @@ Las marcas nunca se modifican. Cuando algo cambia, una marca nueva **reemplaza**
 ## OSDE y particular
 
 La cobertura se define **por prestación** (`plan_prestaciones.financiador_id`), no solo por paciente. Así un paciente de OSDE puede tener parte del tratamiento como particular, y el presupuesto puede ser mixto.
+
+## Acceso y consultorios
+
+- **Una cuenta por persona** (`usuarios`): email, contraseña (hash scrypt) y clave de la app de autenticación (cifrada). La matrícula y las especialidades (`profesionales`) también son de la persona.
+- **Pertenencia y roles por consultorio** (`consultorio_miembros`, `usuario_roles.consultorio_id`): la misma persona puede ser profesional en un consultorio y administradora en otro. Desactivar a alguien desactiva su pertenencia; si no le queda ningún consultorio, también su cuenta. Nada se borra.
+- **Sesiones** (`sesiones`): guardan el hash del token, el consultorio activo, cuándo se verificó el código, el último uso, IP y navegador. Una clave foránea a la pertenencia impide abrir una sesión en un consultorio ajeno.
+- **Un solo uso** (`codigos_recuperacion`, `enlaces_acceso`): solo se puede marcar cuándo se usó o se anuló, una vez; lo controla un trigger. Un índice único parcial deja un solo enlace vigente por persona.
+- **Intentos de ingreso** (`intentos_ingreso`): huella del email, IP y resultado. No se modifican; los viejos se pueden borrar.
+
+Los datos del consultorio (pacientes, turnos, historia clínica) todavía no tienen `consultorio_id`: ver [`multi-consultorio.md`](multi-consultorio.md).

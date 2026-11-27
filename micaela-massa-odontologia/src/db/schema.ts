@@ -15,12 +15,14 @@
 import { sql } from 'drizzle-orm';
 import {
   type AnyPgColumn,
+  bigint,
   bigserial,
   boolean,
   char,
   check,
   customType,
   date,
+  foreignKey,
   index,
   integer,
   jsonb,
@@ -32,6 +34,7 @@ import {
   text,
   timestamp,
   unique,
+  uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
 import { ESTADOS_TURNO } from '../domain/agenda/turnos';
@@ -66,6 +69,8 @@ export const prioridadPendienteEnum = pgEnum('prioridad_pendiente', PRIORIDADES)
 export const tipoAccionPendienteEnum = pgEnum('tipo_accion_pendiente', TIPOS_ACCION_PENDIENTE);
 export const respuestaContactoEnum = pgEnum('respuesta_contacto', RESPUESTAS_CONTACTO);
 export const origenAccionEnum = pgEnum('origen_accion', ORIGENES_ACCION);
+export const motivoEnlaceEnum = pgEnum('motivo_enlace_acceso', ['primer_ingreso', 'blanqueo_clave', 'blanqueo_verificacion']);
+export const resultadoIntentoEnum = pgEnum('resultado_intento_ingreso', ['clave_incorrecta', 'codigo_incorrecto', 'clave_correcta', 'ingreso', 'bloqueado']);
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const creadoEn = () => timestamp('creado_en', { withTimezone: true }).notNull().defaultNow();
@@ -86,24 +91,77 @@ const CHECK_PIEZA_FDI = (columna: string) =>
   sql.raw(`(${columna} / 10 between 1 and 4 and ${columna} % 10 between 1 and 8) or (${columna} / 10 between 5 and 8 and ${columna} % 10 between 1 and 5)`);
 
 // ---------------------------------------------------------------------------
-// Usuarios, roles y profesionales
+// Consultorios, usuarios, roles y profesionales
 // ---------------------------------------------------------------------------
-export const usuarios = pgTable('usuarios', {
+
+/**
+ * Consultorios que usan el sistema. Hoy hay uno solo; la pertenencia y los
+ * roles ya son por consultorio (ver docs/multi-consultorio.md).
+ */
+export const consultorios = pgTable('consultorios', {
   id: id(),
-  email: text('email').notNull().unique(),
   nombre: text('nombre').notNull(),
-  apellido: text('apellido').notNull(),
   activo: boolean('activo').notNull().default(true),
   creadoEn: creadoEn(),
 });
 
+/**
+ * Personas con acceso al sistema. La cuenta (email, contraseña y verificación
+ * en dos pasos) es una sola aunque trabaje en varios consultorios.
+ */
+export const usuarios = pgTable(
+  'usuarios',
+  {
+    id: id(),
+    /** Siempre en minúsculas y sin espacios (ver `normalizarEmail`). */
+    email: text('email').notNull().unique(),
+    nombre: text('nombre').notNull(),
+    apellido: text('apellido').notNull(),
+    /** Si es false, la cuenta no entra a ningún consultorio. */
+    activo: boolean('activo').notNull().default(true),
+    creadoEn: creadoEn(),
+    /** Hash scrypt con sal propia (ver src/domain/acceso/contrasenas.ts). Vacío hasta que la persona la define. */
+    claveHash: text('clave_hash'),
+    claveCambiadaEn: fechaHora('clave_cambiada_en'),
+    /** Clave de la app de autenticación, cifrada con CLAVE_SECRETOS (ver src/server/acceso/secretos.ts). */
+    totpSecreto: text('totp_secreto'),
+    totpConfirmadoEn: fechaHora('totp_confirmado_en'),
+    /** Último intervalo de 30 segundos aceptado: un mismo código no sirve dos veces. */
+    totpUltimoPaso: bigint('totp_ultimo_paso', { mode: 'number' }),
+    /** Clave nueva mientras se configura otra app; pasa a `totp_secreto` al confirmarla con un código. */
+    totpPendiente: text('totp_pendiente'),
+    totpPendienteEn: fechaHora('totp_pendiente_en'),
+  },
+  (t) => [
+    check('usuarios_email_normalizado', sql`${t.email} = lower(btrim(${t.email}))`),
+    check('usuarios_totp_confirmado', sql`(${t.totpSecreto} is null) = (${t.totpConfirmadoEn} is null)`),
+  ],
+);
+
+/** Pertenencia de una persona a un consultorio. Se desactiva, no se borra. */
+export const consultorioMiembros = pgTable(
+  'consultorio_miembros',
+  {
+    consultorioId: uuid('consultorio_id').notNull().references(() => consultorios.id),
+    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
+    activo: boolean('activo').notNull().default(true),
+    creadoEn: creadoEn(),
+  },
+  (t) => [primaryKey({ columns: [t.consultorioId, t.usuarioId] }), index('consultorio_miembros_usuario_idx').on(t.usuarioId)],
+);
+
+/** Roles de cada persona en cada consultorio: en uno puede ser profesional y en otro, además, administradora. */
 export const usuarioRoles = pgTable(
   'usuario_roles',
   {
+    consultorioId: uuid('consultorio_id').notNull().references(() => consultorios.id),
     usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
     rol: rolEnum('rol').notNull(),
   },
-  (t) => [primaryKey({ columns: [t.usuarioId, t.rol] })],
+  (t) => [
+    primaryKey({ columns: [t.consultorioId, t.usuarioId, t.rol] }),
+    foreignKey({ name: 'usuario_roles_miembro_fk', columns: [t.consultorioId, t.usuarioId], foreignColumns: [consultorioMiembros.consultorioId, consultorioMiembros.usuarioId] }),
+  ],
 );
 
 export const profesionales = pgTable(
@@ -131,6 +189,96 @@ export const profesionalEspecialidades = pgTable(
     especialidad: especialidadEnum('especialidad').notNull(),
   },
   (t) => [primaryKey({ columns: [t.usuarioId, t.especialidad] })],
+);
+
+// ---------------------------------------------------------------------------
+// Inicio de sesión (ver docs/arquitectura.md, "Inicio de sesión")
+// ---------------------------------------------------------------------------
+
+/**
+ * Sesiones abiertas. El token viaja solo en la cookie; acá se guarda su
+ * SHA-256, así que copiar esta tabla no sirve para entrar. La sesión lleva el
+ * consultorio en el que se está trabajando.
+ */
+export const sesiones = pgTable(
+  'sesiones',
+  {
+    id: id(),
+    tokenHash: char('token_hash', { length: 64 }).notNull().unique(),
+    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
+    consultorioId: uuid('consultorio_id').notNull().references(() => consultorios.id),
+    creadaEn: creadoEn(),
+    /** Cuándo se escribió bien el código de la app. Sin esto la sesión solo sirve para escribirlo. */
+    verificadaEn: fechaHora('verificada_en'),
+    ultimoUsoEn: fechaHora('ultimo_uso_en').notNull().defaultNow(),
+    cerradaEn: fechaHora('cerrada_en'),
+    /** salir, otras_sesiones, cambio_de_clave, blanqueo, desactivado... */
+    motivoCierre: text('motivo_cierre'),
+    ip: text('ip'),
+    userAgent: text('user_agent'),
+  },
+  (t) => [
+    index('sesiones_usuario_idx').on(t.usuarioId, t.cerradaEn),
+    foreignKey({ name: 'sesiones_miembro_fk', columns: [t.consultorioId, t.usuarioId], foreignColumns: [consultorioMiembros.consultorioId, consultorioMiembros.usuarioId] }),
+    check('sesiones_token_hash_hex', sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+
+/** Códigos de recuperación de un solo uso, guardados como hash. */
+export const codigosRecuperacion = pgTable(
+  'codigos_recuperacion',
+  {
+    id: id(),
+    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
+    codigoHash: char('codigo_hash', { length: 64 }).notNull(),
+    creadoEn: creadoEn(),
+    usadoEn: fechaHora('usado_en'),
+    /** Al generar códigos nuevos o blanquear la verificación, los anteriores se anulan. */
+    anuladoEn: fechaHora('anulado_en'),
+  },
+  (t) => [unique('codigos_recuperacion_unico').on(t.usuarioId, t.codigoHash)],
+);
+
+/**
+ * Enlaces de un solo uso para definir la contraseña y la verificación en dos
+ * pasos: el primer ingreso y los blanqueos. Como no hay envío de emails, el
+ * administrador ve el enlace y se lo pasa a la persona.
+ */
+export const enlacesAcceso = pgTable(
+  'enlaces_acceso',
+  {
+    id: id(),
+    tokenHash: char('token_hash', { length: 64 }).notNull().unique(),
+    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
+    motivo: motivoEnlaceEnum('motivo').notNull(),
+    creadoPor: uuid('creado_por').notNull().references(() => usuarios.id),
+    creadoEn: creadoEn(),
+    venceEn: fechaHora('vence_en').notNull(),
+    usadoEn: fechaHora('usado_en'),
+    anuladoEn: fechaHora('anulado_en'),
+  },
+  (t) => [
+    // Un solo enlace vigente por persona: generar otro anula el anterior.
+    uniqueIndex('enlaces_acceso_uno_vigente').on(t.usuarioId).where(sql`${t.usadoEn} is null and ${t.anuladoEn} is null`),
+    check('enlaces_acceso_token_hash_hex', sql`${t.tokenHash} ~ '^[0-9a-f]{64}$'`),
+  ],
+);
+
+/**
+ * Intentos de ingreso, para bloquear por usuario y por IP. Del email se guarda
+ * una huella (SHA-256), no lo que se escribió: a veces es la contraseña.
+ */
+export const intentosIngreso = pgTable(
+  'intentos_ingreso',
+  {
+    id: bigserial('id', { mode: 'number' }).primaryKey(),
+    emailHuella: char('email_huella', { length: 64 }),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id),
+    ip: text('ip'),
+    resultado: resultadoIntentoEnum('resultado').notNull(),
+    ocurridoEn: creadoEn(),
+  },
+  (t) => [index('intentos_ingreso_email_idx').on(t.emailHuella, t.ocurridoEn), index('intentos_ingreso_ip_idx').on(t.ip, t.ocurridoEn)],
 );
 
 // ---------------------------------------------------------------------------
