@@ -17,7 +17,7 @@ import {
   type PoliticaDeSesion,
 } from '../../domain/acceso/sesiones';
 import { cargarUsuario, consultoriosDeUsuario, type UsuarioSesion } from '../usuarios';
-import { auditarAcceso, bloqueoVigente, registrarIntento, type DatosDelPedido } from './registro';
+import { auditarAcceso, bloqueoVigente, candadoDeIngreso, conCandadoDeIntentos, registrarIntento, type DatosDelPedido } from './registro';
 import { codigosDeRecuperacionRestantes, usarCodigoDeApp, usarCodigoDeRecuperacion } from './verificacion';
 
 /**
@@ -52,27 +52,34 @@ export async function ingresarConClave(db: BaseDeDatos, entrada: { email: string
   const email = normalizarEmail(entrada.email);
   const huella = huellaDeEmail(email);
 
-  const bloqueo = await bloqueoVigente(db, huella, pedido.ip, ahora);
-  if (bloqueo) {
-    await registrarIntento(db, { emailHuella: huella, pedido, resultado: 'bloqueado', ahora });
-    return { estado: 'bloqueado', mensaje: mensajeDeBloqueo(bloqueo, ahora) };
-  }
-
-  const [usuario] = email
-    ? await db
-        .select({ id: usuarios.id, activo: usuarios.activo, claveHash: usuarios.claveHash, totpConfirmadoEn: usuarios.totpConfirmadoEn })
-        .from(usuarios)
-        .where(eq(usuarios.email, email))
-    : [];
-  // Sin usuario o sin contraseña se verifica igual contra un hash señuelo: tarda lo mismo.
-  const claveCorrecta = (await verificarContrasena(entrada.clave, usuario?.claveHash ?? (await hashDeSenuelo()))) && Boolean(usuario?.claveHash);
-  if (!usuario || !claveCorrecta) {
-    await registrarIntento(db, { emailHuella: huella, usuarioId: usuario?.id, pedido, resultado: 'clave_incorrecta', ahora });
-    return { estado: 'error', mensaje: MENSAJE_CLAVE_INCORRECTA };
-  }
+  // Bloqueo, comparación y registro del intento, de a un pedido por email:
+  // pedidos simultáneos no pueden probar más contraseñas que las permitidas.
+  const verificado = await conCandadoDeIntentos(db, candadoDeIngreso(huella), async (tx) => {
+    const bloqueo = await bloqueoVigente(tx, huella, pedido.ip, ahora);
+    if (bloqueo) {
+      await registrarIntento(tx, { emailHuella: huella, pedido, resultado: 'bloqueado', ahora });
+      return { estado: 'bloqueado', hasta: bloqueo } as const;
+    }
+    const [usuario] = email
+      ? await tx
+          .select({ id: usuarios.id, activo: usuarios.activo, claveHash: usuarios.claveHash, totpConfirmadoEn: usuarios.totpConfirmadoEn })
+          .from(usuarios)
+          .where(eq(usuarios.email, email))
+      : [];
+    // Sin usuario o sin contraseña se verifica igual contra un hash señuelo: tarda lo mismo.
+    const claveCorrecta = (await verificarContrasena(entrada.clave, usuario?.claveHash ?? (await hashDeSenuelo()))) && Boolean(usuario?.claveHash);
+    if (!usuario || !claveCorrecta) {
+      await registrarIntento(tx, { emailHuella: huella, usuarioId: usuario?.id, pedido, resultado: 'clave_incorrecta', ahora });
+      return { estado: 'error' } as const;
+    }
+    await registrarIntento(tx, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'clave_correcta', ahora });
+    return { estado: 'correcta', usuario } as const;
+  });
+  if (verificado.estado === 'bloqueado') return { estado: 'bloqueado', mensaje: mensajeDeBloqueo(verificado.hasta, ahora) };
+  if (verificado.estado === 'error') return { estado: 'error', mensaje: MENSAJE_CLAVE_INCORRECTA };
+  const { usuario } = verificado;
 
   // De acá en adelante la contraseña es correcta: se puede explicar qué pasa.
-  await registrarIntento(db, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'clave_correcta', ahora });
   if (!usuario.activo) return { estado: 'error', mensaje: 'Tu usuario está desactivado. Hablá con quien administra el consultorio.' };
   if (!usuario.totpConfirmadoEn) {
     return { estado: 'error', mensaje: 'Te falta configurar la verificación en dos pasos. Pedile a quien administra el consultorio un enlace nuevo.' };
@@ -140,42 +147,47 @@ export async function ingresarConCodigo(db: BaseDeDatos, entrada: { token: strin
   const [usuario] = await db.select({ email: usuarios.email, activo: usuarios.activo }).from(usuarios).where(eq(usuarios.id, sesion.usuarioId));
   if (!usuario?.activo) return { estado: 'vencido', mensaje: MENSAJE_PASO_VENCIDO };
   const huella = huellaDeEmail(usuario.email);
-
-  const bloqueo = await bloqueoVigente(db, huella, pedido.ip, ahora);
-  if (bloqueo) {
-    await registrarIntento(db, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'bloqueado', ahora });
-    await db.update(sesiones).set({ cerradaEn: ahora, motivoCierre: 'bloqueo' }).where(eq(sesiones.id, sesion.id));
-    return { estado: 'bloqueado', mensaje: mensajeDeBloqueo(bloqueo, ahora) };
-  }
-
   const conRecuperacion = pareceCodigoRecuperacion(entrada.codigo);
-  let error: string | null = null;
-  let cuentaComoFallo = true;
-  if (conRecuperacion) {
-    if (!(await usarCodigoDeRecuperacion(db, sesion.usuarioId, entrada.codigo, ahora))) error = 'Ese código de recuperación no sirve: puede que ya se haya usado.';
-  } else {
-    const resultado = await usarCodigoDeApp(db, sesion.usuarioId, entrada.codigo, ahora);
-    if (!resultado.ok) {
-      error = resultado.error;
-      // Escribir algo que ni siquiera tiene 6 números no es un intento de adivinar.
-      cuentaComoFallo = resultado.motivo !== 'formato';
+
+  // Como con la contraseña: de a un pedido por email, así N códigos simultáneos no se saltean el límite.
+  const resultado = await conCandadoDeIntentos(db, candadoDeIngreso(huella), async (tx) => {
+    const bloqueo = await bloqueoVigente(tx, huella, pedido.ip, ahora);
+    if (bloqueo) {
+      await registrarIntento(tx, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'bloqueado', ahora });
+      await tx.update(sesiones).set({ cerradaEn: ahora, motivoCierre: 'bloqueo' }).where(eq(sesiones.id, sesion.id));
+      return { estado: 'bloqueado', mensaje: mensajeDeBloqueo(bloqueo, ahora) } as const;
     }
-  }
-  if (error) {
-    if (cuentaComoFallo) await registrarIntento(db, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'codigo_incorrecto', ahora });
-    return { estado: 'error', mensaje: error };
-  }
 
-  // Token nuevo al completar el ingreso: el del primer paso deja de servir.
-  const token = generarToken();
-  const [activada] = await db
-    .update(sesiones)
-    .set({ tokenHash: hashToken(token), verificadaEn: ahora, ultimoUsoEn: ahora, ip: pedido.ip, userAgent: pedido.userAgent })
-    .where(and(eq(sesiones.id, sesion.id), isNull(sesiones.verificadaEn), isNull(sesiones.cerradaEn)))
-    .returning({ id: sesiones.id });
-  if (!activada) return { estado: 'vencido', mensaje: MENSAJE_PASO_VENCIDO };
+    let error: string | null = null;
+    let cuentaComoFallo = true;
+    if (conRecuperacion) {
+      if (!(await usarCodigoDeRecuperacion(tx, sesion.usuarioId, entrada.codigo, ahora))) error = 'Ese código de recuperación no sirve: puede que ya se haya usado.';
+    } else {
+      const codigo = await usarCodigoDeApp(tx, sesion.usuarioId, entrada.codigo, ahora);
+      if (!codigo.ok) {
+        error = codigo.error;
+        // Escribir algo que ni siquiera tiene 6 números no es un intento de adivinar.
+        cuentaComoFallo = codigo.motivo !== 'formato';
+      }
+    }
+    if (error) {
+      if (cuentaComoFallo) await registrarIntento(tx, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'codigo_incorrecto', ahora });
+      return { estado: 'error', mensaje: error } as const;
+    }
 
-  await registrarIntento(db, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'ingreso', ahora });
+    // Token nuevo al completar el ingreso: el del primer paso deja de servir.
+    const token = generarToken();
+    const [activada] = await tx
+      .update(sesiones)
+      .set({ tokenHash: hashToken(token), verificadaEn: ahora, ultimoUsoEn: ahora, ip: pedido.ip, userAgent: pedido.userAgent })
+      .where(and(eq(sesiones.id, sesion.id), isNull(sesiones.verificadaEn), isNull(sesiones.cerradaEn)))
+      .returning({ id: sesiones.id });
+    if (!activada) return { estado: 'vencido', mensaje: MENSAJE_PASO_VENCIDO } as const;
+    await registrarIntento(tx, { emailHuella: huella, usuarioId: sesion.usuarioId, pedido, resultado: 'ingreso', ahora });
+    return { estado: 'ingreso', token } as const;
+  });
+  if (resultado.estado !== 'ingreso') return resultado;
+
   const codigosRestantes = conRecuperacion ? await codigosDeRecuperacionRestantes(db, sesion.usuarioId) : 0;
   await auditarAcceso(db, {
     usuarioId: sesion.usuarioId,
@@ -186,7 +198,7 @@ export async function ingresarConCodigo(db: BaseDeDatos, entrada: { token: strin
     pedido,
     ahora,
   });
-  return { estado: 'ingreso', token, sesionId: sesion.id, usoCodigoDeRecuperacion: conRecuperacion, codigosRestantes };
+  return { estado: 'ingreso', token: resultado.token, sesionId: sesion.id, usoCodigoDeRecuperacion: conRecuperacion, codigosRestantes };
 }
 
 /**

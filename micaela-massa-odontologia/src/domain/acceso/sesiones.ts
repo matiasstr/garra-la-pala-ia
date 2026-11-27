@@ -64,13 +64,31 @@ export interface PoliticaDeBloqueo {
 }
 
 const MINUTO = 60 * 1000;
-/** Por usuario: 5 fallos (contraseña o código) en 15 minutos bloquean 15 minutos. */
-export const BLOQUEO_POR_USUARIO: PoliticaDeBloqueo = { maximo: 5, ventanaMs: 15 * MINUTO, duracionMs: 15 * MINUTO };
 /**
- * Por IP: 20 fallos en 15 minutos. Es más alto porque en el consultorio todas
- * las computadoras salen a internet con la misma IP.
+ * Por email e IP: 5 fallos (contraseña o código) de un email desde una misma
+ * IP en 15 minutos bloquean 15 minutos ese email desde esa IP. Quien sabe el
+ * email de una profesional y prueba contraseñas desde su casa no la bloquea
+ * en el consultorio.
+ */
+export const BLOQUEO_POR_EMAIL_E_IP: PoliticaDeBloqueo = { maximo: 5, ventanaMs: 15 * MINUTO, duracionMs: 15 * MINUTO };
+/**
+ * Por email, desde cualquier IP: 30 fallos en 15 minutos. Frena un ataque
+ * repartido en muchas IP; es alto para que no alcance con saber un email para
+ * dejar a alguien afuera.
+ */
+export const BLOQUEO_POR_EMAIL: PoliticaDeBloqueo = { maximo: 30, ventanaMs: 15 * MINUTO, duracionMs: 15 * MINUTO };
+/**
+ * Por IP: 20 fallos en 15 minutos, con cualquier email. Es más alto que por
+ * email e IP porque en el consultorio todas las computadoras salen a internet
+ * con la misma IP.
  */
 export const BLOQUEO_POR_IP: PoliticaDeBloqueo = { maximo: 20, ventanaMs: 15 * MINUTO, duracionMs: 15 * MINUTO };
+/**
+ * "Mi cuenta" (contraseña actual o código de la app, con la sesión abierta):
+ * 5 fallos de la persona en 15 minutos bloquean esas acciones 15 minutos. Se
+ * cuentan aparte: los intentos de ingreso de otros no las bloquean.
+ */
+export const BLOQUEO_DE_CUENTA: PoliticaDeBloqueo = { maximo: 5, ventanaMs: 15 * MINUTO, duracionMs: 15 * MINUTO };
 
 /**
  * `fallos`: instantes de los intentos fallidos posteriores al último ingreso

@@ -71,6 +71,7 @@ export const respuestaContactoEnum = pgEnum('respuesta_contacto', RESPUESTAS_CON
 export const origenAccionEnum = pgEnum('origen_accion', ORIGENES_ACCION);
 export const motivoEnlaceEnum = pgEnum('motivo_enlace_acceso', ['primer_ingreso', 'blanqueo_clave', 'blanqueo_verificacion']);
 export const resultadoIntentoEnum = pgEnum('resultado_intento_ingreso', ['clave_incorrecta', 'codigo_incorrecto', 'clave_correcta', 'ingreso', 'bloqueado']);
+export const ambitoIntentoEnum = pgEnum('ambito_intento', ['ingreso', 'cuenta']);
 
 const id = () => uuid('id').primaryKey().defaultRandom();
 const creadoEn = () => timestamp('creado_en', { withTimezone: true }).notNull().defaultNow();
@@ -265,8 +266,9 @@ export const enlacesAcceso = pgTable(
 );
 
 /**
- * Intentos de ingreso, para bloquear por usuario y por IP. Del email se guarda
- * una huella (SHA-256), no lo que se escribió: a veces es la contraseña.
+ * Intentos de ingreso, para los bloqueos (ver `src/server/acceso/registro.ts`).
+ * Del email se guarda una huella (SHA-256), no lo que se escribió: a veces es
+ * la contraseña.
  */
 export const intentosIngreso = pgTable(
   'intentos_ingreso',
@@ -276,9 +278,19 @@ export const intentosIngreso = pgTable(
     usuarioId: uuid('usuario_id').references(() => usuarios.id),
     ip: text('ip'),
     resultado: resultadoIntentoEnum('resultado').notNull(),
+    /**
+     * `ingreso`: inicio de sesión y enlaces de un solo uso (cuentan por email e
+     * IP, por email y por IP). `cuenta`: lo que se confirma en "Mi cuenta" con
+     * la sesión ya abierta (cuenta por usuario, aparte de los ingresos).
+     */
+    ambito: ambitoIntentoEnum('ambito').notNull().default('ingreso'),
     ocurridoEn: creadoEn(),
   },
-  (t) => [index('intentos_ingreso_email_idx').on(t.emailHuella, t.ocurridoEn), index('intentos_ingreso_ip_idx').on(t.ip, t.ocurridoEn)],
+  (t) => [
+    index('intentos_ingreso_email_idx').on(t.emailHuella, t.ocurridoEn),
+    index('intentos_ingreso_ip_idx').on(t.ip, t.ocurridoEn),
+    index('intentos_ingreso_usuario_idx').on(t.usuarioId, t.ocurridoEn),
+  ],
 );
 
 // ---------------------------------------------------------------------------

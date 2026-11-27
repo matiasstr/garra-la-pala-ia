@@ -4,7 +4,7 @@ import type { BaseDeDatos } from '../../db/tipos';
 import { hashearContrasena, validarContrasenaNueva, verificarContrasena } from '../../domain/acceso/contrasenas';
 import { VIGENCIA_ENLACE_MS, formatoDeTokenValido, generarToken, hashToken, huellaDeEmail, mensajeDeBloqueo } from '../../domain/acceso/sesiones';
 import { cerrarSesionesDeUsuario } from './autenticacion';
-import { auditarAcceso, bloqueoVigente, registrarIntento, type DatosDelPedido } from './registro';
+import { auditarAcceso, bloqueoVigente, candadoDeIngreso, conCandadoDeIntentos, registrarIntento, type DatosDelPedido } from './registro';
 import { confirmarClaveDeApp, prepararClaveDeApp, type ClaveParaLaApp } from './verificacion';
 
 /**
@@ -112,14 +112,17 @@ export async function pasoClaveDelEnlace(
   const { usuario } = enlace;
 
   if (usuario.tieneClave) {
+    // Cuenta como un intento de ingreso con ese email (mismas reglas y mismo candado).
     const huella = huellaDeEmail(usuario.email);
-    const bloqueo = await bloqueoVigente(db, huella, pedido.ip, ahora);
-    if (bloqueo) return { ok: false, errores: [mensajeDeBloqueo(bloqueo, ahora)] };
-    const [fila] = await db.select({ claveHash: usuarios.claveHash }).from(usuarios).where(eq(usuarios.id, usuario.id));
-    if (!fila?.claveHash || !(await verificarContrasena(entrada.clave, fila.claveHash))) {
-      await registrarIntento(db, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'clave_incorrecta', ahora });
-      return { ok: false, errores: ['La contraseña no es correcta.'] };
-    }
+    const error = await conCandadoDeIntentos(db, candadoDeIngreso(huella), async (tx) => {
+      const bloqueo = await bloqueoVigente(tx, huella, pedido.ip, ahora);
+      if (bloqueo) return mensajeDeBloqueo(bloqueo, ahora);
+      const [fila] = await tx.select({ claveHash: usuarios.claveHash }).from(usuarios).where(eq(usuarios.id, usuario.id));
+      if (fila?.claveHash && (await verificarContrasena(entrada.clave, fila.claveHash))) return null;
+      await registrarIntento(tx, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'clave_incorrecta', ahora });
+      return 'La contraseña no es correcta.';
+    });
+    if (error) return { ok: false, errores: [error] };
   } else {
     const errores = validarContrasenaNueva(entrada.clave, usuario);
     if (entrada.clave !== entrada.repetida) errores.push('Las dos contraseñas no coinciden.');

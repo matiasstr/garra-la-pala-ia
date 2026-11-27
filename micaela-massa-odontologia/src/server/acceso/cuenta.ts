@@ -5,7 +5,7 @@ import { hashearContrasena, validarContrasenaNueva, verificarContrasena } from '
 import { estadoDeSesion, huellaDeEmail, mensajeDeBloqueo } from '../../domain/acceso/sesiones';
 import { consultoriosDeUsuario, type ConsultorioDeUsuario, type UsuarioSesion } from '../usuarios';
 import { cerrarSesionesDeUsuario, politicaDeSesion } from './autenticacion';
-import { auditarAcceso, bloqueoVigente, registrarIntento, type DatosDelPedido } from './registro';
+import { auditarAcceso, bloqueoDeCuenta, candadoDeCuenta, conCandadoDeIntentos, registrarIntento, type DatosDelPedido } from './registro';
 import { codigosDeRecuperacionRestantes, confirmarClaveDeApp, prepararClaveDeApp, renovarCodigosDeRecuperacion, usarCodigoDeApp, type ClaveParaLaApp } from './verificacion';
 
 /**
@@ -83,15 +83,20 @@ export async function estadoDeCuenta(db: BaseDeDatos, usuario: UsuarioSesion, se
 
 type Resultado = { ok: true; mensaje: string } | { ok: false; errores: string[] };
 
-/** Verifica la contraseña actual contando el intento para el bloqueo, como en el ingreso. */
+/**
+ * Verifica la contraseña actual contando el fallo para el bloqueo de "Mi
+ * cuenta" (por persona, aparte del ingreso: lo que intenten otros para entrar
+ * con su email no la bloquea acá). De a un pedido por persona.
+ */
 async function comprobarClaveActual(db: BaseDeDatos, usuario: UsuarioSesion, clave: string, pedido: DatosDelPedido, ahora: Date): Promise<string | null> {
-  const huella = huellaDeEmail(usuario.email);
-  const bloqueo = await bloqueoVigente(db, huella, pedido.ip, ahora);
-  if (bloqueo) return mensajeDeBloqueo(bloqueo, ahora);
-  const [fila] = await db.select({ claveHash: usuarios.claveHash }).from(usuarios).where(eq(usuarios.id, usuario.id));
-  if (fila?.claveHash && (await verificarContrasena(clave, fila.claveHash))) return null;
-  await registrarIntento(db, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'clave_incorrecta', ahora });
-  return 'La contraseña actual no es correcta.';
+  return conCandadoDeIntentos(db, candadoDeCuenta(usuario.id), async (tx) => {
+    const bloqueo = await bloqueoDeCuenta(tx, usuario.id, ahora);
+    if (bloqueo) return mensajeDeBloqueo(bloqueo, ahora);
+    const [fila] = await tx.select({ claveHash: usuarios.claveHash }).from(usuarios).where(eq(usuarios.id, usuario.id));
+    if (fila?.claveHash && (await verificarContrasena(clave, fila.claveHash))) return null;
+    await registrarIntento(tx, { emailHuella: huellaDeEmail(usuario.email), usuarioId: usuario.id, pedido, resultado: 'clave_incorrecta', ambito: 'cuenta', ahora });
+    return 'La contraseña actual no es correcta.';
+  });
 }
 
 /** Cambia la contraseña y cierra las demás sesiones abiertas. */
@@ -153,20 +158,21 @@ export async function nuevosCodigosDeRecuperacion(
   pedido: DatosDelPedido,
   ahora: Date = new Date(),
 ): Promise<{ ok: true; codigos: string[] } | { ok: false; errores: string[] }> {
-  const huella = huellaDeEmail(usuario.email);
-  const bloqueo = await bloqueoVigente(db, huella, pedido.ip, ahora);
-  if (bloqueo) return { ok: false, errores: [mensajeDeBloqueo(bloqueo, ahora)] };
-  const verificado = await usarCodigoDeApp(db, usuario.id, codigo, ahora);
-  if (!verificado.ok) {
-    if (verificado.motivo !== 'formato') await registrarIntento(db, { emailHuella: huella, usuarioId: usuario.id, pedido, resultado: 'codigo_incorrecto', ahora });
-    return { ok: false, errores: [verificado.error] };
-  }
-  const codigos = await db.transaction(async (tx) => {
+  // Como la contraseña actual: bloqueo propio de "Mi cuenta", de a un pedido por persona.
+  return conCandadoDeIntentos(db, candadoDeCuenta(usuario.id), async (tx) => {
+    const bloqueo = await bloqueoDeCuenta(tx, usuario.id, ahora);
+    if (bloqueo) return { ok: false, errores: [mensajeDeBloqueo(bloqueo, ahora)] } as const;
+    const verificado = await usarCodigoDeApp(tx, usuario.id, codigo, ahora);
+    if (!verificado.ok) {
+      if (verificado.motivo !== 'formato') {
+        await registrarIntento(tx, { emailHuella: huellaDeEmail(usuario.email), usuarioId: usuario.id, pedido, resultado: 'codigo_incorrecto', ambito: 'cuenta', ahora });
+      }
+      return { ok: false, errores: [verificado.error] } as const;
+    }
     const codigos = await renovarCodigosDeRecuperacion(tx, usuario.id, ahora);
     await auditarAcceso(tx, { usuarioId: usuario.id, accion: 'cuenta.nuevos_codigos_de_recuperacion', entidad: 'usuario', entidadId: usuario.id, pedido, ahora });
-    return codigos;
+    return { ok: true, codigos } as const;
   });
-  return { ok: true, codigos };
 }
 
 /** Cierra todas las sesiones de la persona menos la actual. */

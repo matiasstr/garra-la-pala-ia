@@ -3,7 +3,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { CLAVE_DE_PRUEBA, SECRETO_TOTP_DE_PRUEBA } from '../../src/db/acceso-de-prueba';
 import * as schema from '../../src/db/schema';
 import { sembrarDatosDePrueba } from '../../src/db/semilla';
-import { hashToken } from '../../src/domain/acceso/sesiones';
+import { hashToken, huellaDeEmail } from '../../src/domain/acceso/sesiones';
 import { codigoTotp, desdeBase32 } from '../../src/domain/acceso/totp';
 import {
   actualizarUsuario,
@@ -301,19 +301,33 @@ describe('sesiones', () => {
 });
 
 describe('bloqueo por intentos fallidos', () => {
-  it('por usuario: 5 fallos bloquean 15 minutos, aun con la contraseña correcta', async () => {
+  it('por email e IP: 5 fallos bloquean 15 minutos ese email desde esa IP, aun con la contraseña correcta', async () => {
     const carlos = await darDeAlta('Carlos');
+    const desdeAfuera = pedidoNuevo();
     for (let i = 0; i < 5; i++) {
-      expect((await ingresarConClave(base.db, { email: carlos.email, clave: `mal ${i}` }, pedidoNuevo(), avanzar(10_000))).estado).toBe('error');
+      expect((await ingresarConClave(base.db, { email: carlos.email, clave: `mal ${i}` }, desdeAfuera, avanzar(10_000))).estado).toBe('error');
     }
-    const bloqueado = await ingresarConClave(base.db, { email: carlos.email, clave: CLAVE }, pedidoNuevo(), avanzar(10_000));
+    const bloqueado = await ingresarConClave(base.db, { email: carlos.email, clave: CLAVE }, desdeAfuera, avanzar(10_000));
     expect(bloqueado).toMatchObject({ estado: 'bloqueado', mensaje: expect.stringMatching(/Esperá 1[45] minutos/) });
+    // Desde otra IP (el consultorio) Carlos entra igual: saber su email no alcanza para dejarlo afuera.
+    expect((await ingresarConClave(base.db, { email: carlos.email, clave: CLAVE }, pedidoNuevo(), avanzar(1000))).estado).toBe('falta_codigo');
     // Un email que no existe se bloquea igual: el bloqueo no delata nada.
-    for (let i = 0; i < 5; i++) await ingresarConClave(base.db, { email: 'fantasma@consultorio.test', clave: `mal ${i}` }, pedidoNuevo(), avanzar(1000));
-    expect((await ingresarConClave(base.db, { email: 'fantasma@consultorio.test', clave: 'x' }, pedidoNuevo(), avanzar(1000))).estado).toBe('bloqueado');
+    const otro = pedidoNuevo();
+    for (let i = 0; i < 5; i++) await ingresarConClave(base.db, { email: 'fantasma@consultorio.test', clave: `mal ${i}` }, otro, avanzar(1000));
+    expect((await ingresarConClave(base.db, { email: 'fantasma@consultorio.test', clave: 'x' }, otro, avanzar(1000))).estado).toBe('bloqueado');
 
     avanzar(16 * 60_000);
-    expect((await ingresarConClave(base.db, { email: carlos.email, clave: CLAVE }, pedidoNuevo(), avanzar())).estado).toBe('falta_codigo');
+    expect((await ingresarConClave(base.db, { email: carlos.email, clave: CLAVE }, desdeAfuera, avanzar())).estado).toBe('falta_codigo');
+  });
+
+  it('por email, repartido en muchas IP: 30 fallos en 15 minutos lo bloquean desde cualquier IP', async () => {
+    const lia = await darDeAlta('Lia');
+    for (let i = 0; i < 29; i++) await ingresarConClave(base.db, { email: lia.email, clave: `mal ${i}` }, pedidoNuevo(), avanzar(1000));
+    expect((await ingresarConClave(base.db, { email: lia.email, clave: CLAVE }, pedidoNuevo(), avanzar(1000))).estado).toBe('falta_codigo');
+    await ingresarConClave(base.db, { email: lia.email, clave: 'mal 30' }, pedidoNuevo(), avanzar(1000));
+    expect((await ingresarConClave(base.db, { email: lia.email, clave: CLAVE }, pedidoNuevo(), avanzar(1000))).estado).toBe('bloqueado');
+    avanzar(16 * 60_000);
+    expect((await ingresarConClave(base.db, { email: lia.email, clave: CLAVE }, pedidoNuevo(), avanzar())).estado).toBe('falta_codigo');
   });
 
   it('los códigos equivocados también cuentan', async () => {
@@ -335,6 +349,79 @@ describe('bloqueo por intentos fallidos', () => {
     for (let i = 0; i < 20; i++) await ingresarConClave(base.db, { email: `prueba${i}@otro.test`, clave: 'adivinando' }, atacante, avanzar(1000));
     expect((await ingresarConClave(base.db, { email: elena.email, clave: CLAVE }, atacante, avanzar(1000))).estado).toBe('bloqueado');
     expect((await ingresarConClave(base.db, { email: elena.email, clave: CLAVE }, pedidoNuevo(), avanzar(1000))).estado).toBe('falta_codigo');
+    avanzar(16 * 60_000);
+  });
+
+  it('"Mi cuenta" cuenta sus propios fallos, y los intentos de ingreso de otros no la bloquean', async () => {
+    const mara = await darDeAlta('Mara');
+    const sesion = (await validarSesion(base.db, await ingresar(mara), avanzar()))!;
+    // Alguien prueba 30 contraseñas con su email desde muchas IP: el ingreso con su email queda bloqueado...
+    for (let i = 0; i < 30; i++) await ingresarConClave(base.db, { email: mara.email, clave: `mal ${i}` }, pedidoNuevo(), avanzar(1000));
+    expect((await ingresarConClave(base.db, { email: mara.email, clave: CLAVE }, pedidoNuevo(), avanzar(1000))).estado).toBe('bloqueado');
+    // ...pero ella, con su sesión abierta, sigue pudiendo confirmar su contraseña en "Mi cuenta".
+    expect((await iniciarCambioDeApp(base.db, sesion.usuario, mara.clave, pedidoNuevo(), avanzar(1000))).ok).toBe(true);
+    // Sus propios fallos ahí se cuentan aparte: con 5, esas acciones se bloquean.
+    const malas = { actual: 'no es la mía', nueva: 'otra frase bien larga', repetida: 'otra frase bien larga' };
+    for (let i = 0; i < 5; i++) {
+      expect(await cambiarClave(base.db, sesion.usuario, sesion.sesionId, malas, pedidoNuevo(), avanzar(1000))).toEqual({ ok: false, errores: ['La contraseña actual no es correcta.'] });
+    }
+    const bloqueada = await cambiarClave(base.db, sesion.usuario, sesion.sesionId, { ...malas, actual: mara.clave }, pedidoNuevo(), avanzar(1000));
+    expect(bloqueada).toMatchObject({ ok: false, errores: [expect.stringContaining('demasiados intentos')] });
+    const t = avanzar(1000);
+    expect(await nuevosCodigosDeRecuperacion(base.db, sesion.usuario, codigoDe(mara.secreto, t), pedidoNuevo(), t)).toMatchObject({ ok: false, errores: [expect.stringContaining('demasiados intentos')] });
+    avanzar(16 * 60_000);
+    expect((await cambiarClave(base.db, sesion.usuario, sesion.sesionId, { ...malas, actual: mara.clave }, pedidoNuevo(), avanzar())).ok).toBe(true);
+  });
+});
+
+describe('intentos simultáneos', () => {
+  const N = 30;
+  const fallosRegistrados = async (filtro: ReturnType<typeof eq>, resultado: 'clave_incorrecta' | 'codigo_incorrecto') =>
+    (await base.db.select().from(schema.intentosIngreso).where(and(filtro, eq(schema.intentosIngreso.resultado, resultado)))).length;
+  const huella = (email: string) => eq(schema.intentosIngreso.emailHuella, huellaDeEmail(email));
+
+  it(`${N} contraseñas a la vez con el mismo email: se comparan 5 y el resto queda bloqueado`, async () => {
+    const nora = await darDeAlta('Nora');
+    const pedido = pedidoNuevo();
+    const ahora = avanzar();
+    const resultados = await Promise.all(Array.from({ length: N }, (_, i) => ingresarConClave(base.db, { email: nora.email, clave: `mal ${i}` }, pedido, ahora)));
+    expect(await fallosRegistrados(huella(nora.email), 'clave_incorrecta')).toBe(5);
+    expect(resultados.filter((r) => r.estado === 'error')).toHaveLength(5);
+    expect(resultados.filter((r) => r.estado === 'bloqueado')).toHaveLength(N - 5);
+    avanzar(16 * 60_000);
+  });
+
+  it(`${N} códigos a la vez en el segundo paso: se comparan 5`, async () => {
+    const olga = await darDeAlta('Olga');
+    const pedido = pedidoNuevo();
+    const paso1 = await ingresarConClave(base.db, { email: olga.email, clave: CLAVE }, pedido, avanzar());
+    if (paso1.estado !== 'falta_codigo') throw new Error('falta código');
+    const ahora = avanzar();
+    const resultados = await Promise.all(Array.from({ length: N }, (_, i) => ingresarConCodigo(base.db, { token: paso1.token, codigo: String(100000 + i) }, pedido, ahora)));
+    expect(await fallosRegistrados(huella(olga.email), 'codigo_incorrecto')).toBe(5);
+    expect(resultados.some((r) => r.estado === 'ingreso')).toBe(false);
+    avanzar(16 * 60_000);
+  });
+
+  it(`${N} contraseñas actuales a la vez en "Mi cuenta": se comparan 5`, async () => {
+    const paula = await darDeAlta('Paula');
+    const sesion = (await validarSesion(base.db, await ingresar(paula), avanzar()))!;
+    const ahora = avanzar();
+    const malas = { actual: 'no es la mía', nueva: 'otra frase bien larga', repetida: 'otra frase bien larga' };
+    await Promise.all(Array.from({ length: N }, () => cambiarClave(base.db, sesion.usuario, sesion.sesionId, malas, pedidoNuevo(), ahora)));
+    const cuenta = and(eq(schema.intentosIngreso.usuarioId, paula.id), eq(schema.intentosIngreso.ambito, 'cuenta'));
+    expect(await fallosRegistrados(cuenta!, 'clave_incorrecta')).toBe(5);
+    avanzar(16 * 60_000);
+  });
+
+  it(`${N} contraseñas a la vez con un enlace de blanqueo de la verificación: se comparan 5`, async () => {
+    const rita = await darDeAlta('Rita');
+    const blanqueo = await blanquearVerificacion(base.db, admin, rita.id, pedidoNuevo(), avanzar());
+    if (!blanqueo.ok) throw new Error('debería blanquear');
+    const pedido = pedidoNuevo();
+    const ahora = avanzar();
+    await Promise.all(Array.from({ length: N }, (_, i) => pasoClaveDelEnlace(base.db, blanqueo.enlace.token, { clave: `mal ${i}` }, pedido, ahora)));
+    expect(await fallosRegistrados(huella(rita.email), 'clave_incorrecta')).toBe(5);
     avanzar(16 * 60_000);
   });
 });

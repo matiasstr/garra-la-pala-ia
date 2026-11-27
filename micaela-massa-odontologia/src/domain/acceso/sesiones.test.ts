@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
   BLOQUEO_POR_IP,
-  BLOQUEO_POR_USUARIO,
+  BLOQUEO_POR_EMAIL,
+  BLOQUEO_POR_EMAIL_E_IP,
   POLITICA_DE_SESION,
   bloqueadoHasta,
   estadoDeSesion,
@@ -67,15 +68,21 @@ describe('vencimiento de la sesión', () => {
 describe('bloqueo por intentos fallidos', () => {
   const fallos = (cantidad: number, cadaMs = MINUTO) => Array.from({ length: cantidad }, (_, i) => mas(i * cadaMs));
 
-  it('por usuario: 5 fallos en 15 minutos bloquean 15 minutos desde el último', () => {
-    expect(bloqueadoHasta(fallos(4), mas(5 * MINUTO), BLOQUEO_POR_USUARIO)).toBeNull();
-    const hasta = bloqueadoHasta(fallos(5), mas(5 * MINUTO), BLOQUEO_POR_USUARIO);
+  it('por email e IP: 5 fallos en 15 minutos bloquean 15 minutos desde el último', () => {
+    expect(bloqueadoHasta(fallos(4), mas(5 * MINUTO), BLOQUEO_POR_EMAIL_E_IP)).toBeNull();
+    const hasta = bloqueadoHasta(fallos(5), mas(5 * MINUTO), BLOQUEO_POR_EMAIL_E_IP);
     expect(hasta).toEqual(mas(4 * MINUTO + 15 * MINUTO));
-    expect(bloqueadoHasta(fallos(5), mas(19 * MINUTO + 1), BLOQUEO_POR_USUARIO)).toBeNull();
+    expect(bloqueadoHasta(fallos(5), mas(19 * MINUTO + 1), BLOQUEO_POR_EMAIL_E_IP)).toBeNull();
   });
 
   it('fallos muy separados no bloquean', () => {
-    expect(bloqueadoHasta(fallos(5, 10 * MINUTO), mas(41 * MINUTO), BLOQUEO_POR_USUARIO)).toBeNull();
+    expect(bloqueadoHasta(fallos(5, 10 * MINUTO), mas(41 * MINUTO), BLOQUEO_POR_EMAIL_E_IP)).toBeNull();
+  });
+
+  it('por email, desde cualquier IP, hace falta mucho más: 30 (frena ataques repartidos)', () => {
+    expect(BLOQUEO_POR_EMAIL.maximo).toBeGreaterThan(BLOQUEO_POR_EMAIL_E_IP.maximo * 5);
+    expect(bloqueadoHasta(fallos(29, 10_000), mas(5 * MINUTO), BLOQUEO_POR_EMAIL)).toBeNull();
+    expect(bloqueadoHasta(fallos(30, 10_000), mas(5 * MINUTO), BLOQUEO_POR_EMAIL)).not.toBeNull();
   });
 
   it('por IP el límite es más alto (todo el consultorio comparte la IP)', () => {
