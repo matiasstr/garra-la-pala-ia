@@ -1,4 +1,5 @@
 import { sql } from 'drizzle-orm';
+import { exigirBaseDePrueba } from './marca-de-prueba';
 import { sembrarDatosDePrueba } from './semilla';
 import type { BaseDeDatos } from './tipos';
 
@@ -30,11 +31,16 @@ async function conBloqueo<T>(db: BaseDeDatos, tarea: () => Promise<T>): Promise<
   }
 }
 
-/** Aplica las migraciones que falten y, si la base está vacía, la siembra. */
+/**
+ * Aplica las migraciones que falten y, si la base está vacía, la siembra (y la
+ * marca como base de prueba). Se niega a seguir si la base tiene datos y no
+ * tiene la marca: puede ser la del consultorio (ver `marca-de-prueba.ts`).
+ */
 export async function prepararBase(db: BaseDeDatos, migrar: () => Promise<void>, hoy: string): Promise<void> {
   await conBloqueo(db, async () => {
     await migrar();
     await sembrarDatosDePrueba(db, hoy);
+    await exigirBaseDePrueba(db);
   });
 }
 
@@ -44,10 +50,12 @@ export async function prepararBase(db: BaseDeDatos, migrar: () => Promise<void>,
  * Lo clínico y los historiales no se pueden borrar fila por fila (los triggers
  * lo impiden, como tiene que ser), así que se descartan los esquemas enteros y
  * se vuelve a migrar. Solo para la demo: quien llama debe verificar antes que
- * el reinicio está permitido.
+ * el reinicio está permitido, y acá se comprueba además que la base sea de prueba.
  */
 export async function reiniciarBase(db: BaseDeDatos, migrar: () => Promise<void>, hoy: string): Promise<void> {
   await conBloqueo(db, async () => {
+    // Nunca se descarta una base que no sea de prueba, aunque alguien llegue acá por error.
+    await exigirBaseDePrueba(db);
     await db.transaction(async (tx) => {
       await tx.execute(sql`drop schema if exists drizzle cascade`);
       await tx.execute(sql`drop schema if exists public cascade`);

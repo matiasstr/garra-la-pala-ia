@@ -1,4 +1,4 @@
-import { count, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { hashearContrasena } from '../domain/acceso/contrasenas';
 import type { EstadoTurno } from '../domain/agenda/turnos';
 import type { UsuarioConRoles } from '../domain/permisos/permisos';
@@ -23,19 +23,24 @@ import {
 } from './schema';
 import { sembrarHistoriasClinicas } from './semilla-historia-clinica';
 import type { BaseDeDatos } from './tipos';
-import { CLAVE_DE_PRUEBA, SECRETO_TOTP_DE_PRUEBA } from './acceso-de-prueba';
+import { CLAVE_DE_PRUEBA, DOMINIO_DE_PRUEBA, SECRETO_TOTP_DE_PRUEBA } from './acceso-de-prueba';
+import { estadoDeLaBase, marcarComoBaseDePrueba } from './marca-de-prueba';
 
 /** Días hábiles, después de hoy, que la semilla llena de turnos. */
 export const DIAS_HABILES_CON_TURNOS = 10;
 
 /**
  * Datos de prueba para desarrollo y demos. Todas las personas son inventadas.
- * Solo se cargan si la base está vacía. Las fechas son relativas a `hoy`:
- * turnos para hoy y para los próximos días hábiles.
+ * Solo se cargan si la base está vacía (sin usuarios, consultorios ni
+ * pacientes), y lo primero que se hace es marcarla como base de prueba: los
+ * usuarios tienen contraseñas públicas, y el modo real se niega a usar una
+ * base con la marca. Las fechas son relativas a `hoy`: turnos para hoy y para
+ * los próximos días hábiles.
  */
 export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promise<boolean> {
-  const [{ cantidad } = { cantidad: 0 }] = await db.select({ cantidad: count() }).from(usuarios);
-  if (cantidad > 0) return false;
+  if ((await estadoDeLaBase(db)).conDatos) return false;
+  // Primero la marca: si la siembra se corta a la mitad, la base igual queda como de prueba.
+  await marcarComoBaseDePrueba(db);
 
   const [consultorio] = await db.insert(consultorios).values({ nombre: 'Micaela Massa Odontología' }).returning();
   if (!consultorio) throw new Error('No se pudo crear el consultorio de prueba.');
@@ -51,9 +56,9 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   const [mica, laura, sofia] = await db
     .insert(usuarios)
     .values([
-      { email: 'mica@consultorio.local', nombre: 'Micaela', apellido: 'Massa', ...accesoMica },
-      { email: 'laura@consultorio.local', nombre: 'Laura', apellido: 'Benítez', ...accesoLaura },
-      { email: 'sofia@consultorio.local', nombre: 'Sofía', apellido: 'Gómez', ...accesoSofia },
+      { email: `mica${DOMINIO_DE_PRUEBA}`, nombre: 'Micaela', apellido: 'Massa', ...accesoMica },
+      { email: `laura${DOMINIO_DE_PRUEBA}`, nombre: 'Laura', apellido: 'Benítez', ...accesoLaura },
+      { email: `sofia${DOMINIO_DE_PRUEBA}`, nombre: 'Sofía', apellido: 'Gómez', ...accesoSofia },
     ])
     .returning();
   if (!mica || !laura || !sofia) throw new Error('No se pudieron crear los usuarios de prueba.');
@@ -151,7 +156,7 @@ export async function sembrarDatosDePrueba(db: BaseDeDatos, hoy: string): Promis
   // Alguien de administración que no atiende ni hace recepción: sirve para ver qué no puede hacer.
   const [carla] = await db
     .insert(usuarios)
-    .values({ email: 'administracion@consultorio.local', nombre: 'Carla', apellido: 'Díaz', ...(await acceso()) })
+    .values({ email: `administracion${DOMINIO_DE_PRUEBA}`, nombre: 'Carla', apellido: 'Díaz', ...(await acceso()) })
     .returning();
   if (!carla) throw new Error('No se pudo crear el usuario de administración.');
   await db.insert(consultorioMiembros).values({ consultorioId: consultorio.id, usuarioId: carla.id });

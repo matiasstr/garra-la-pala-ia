@@ -3,19 +3,20 @@
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { esUsuarioDePrueba } from '@/db/acceso-de-prueba';
 import { baseDeDatos } from '@/db/client';
 import { cerrarSesion } from '@/server/acceso/autenticacion';
 import { modoDesarrollo } from '@/server/entorno';
 import { borrarCookieDeSesion, COOKIE_USUARIO_DESARROLLO, datosDelPedido, tokenDeSesion } from '@/server/sesion';
 import { cargarUsuario } from '@/server/usuarios';
 
-/** Solo en modo desarrollo: elegir con qué usuario de prueba se navega. */
+/** Solo en modo desarrollo: elegir con qué usuario de prueba (de la semilla) se navega. */
 export async function cambiarUsuarioDePrueba(datos: FormData): Promise<void> {
   if (!modoDesarrollo()) throw new Error('No disponible.');
   const id = String(datos.get('usuarioId') ?? '');
   const db = await baseDeDatos();
   const usuario = await cargarUsuario(db, id);
-  if (!usuario) return;
+  if (!usuario || !esUsuarioDePrueba(usuario.email)) return;
   // Si había una sesión iniciada en /ingresar, el selector la reemplaza.
   const token = await tokenDeSesion();
   if (token) {

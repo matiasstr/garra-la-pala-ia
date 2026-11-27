@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { esUsuarioDePrueba } from '@/db/acceso-de-prueba';
 import { baseDeDatos } from '@/db/client';
 import { puede } from '@/domain/permisos/permisos';
 import type { Rol } from '@/domain/permisos/roles';
@@ -20,7 +21,8 @@ export default async function LayoutSistema({ children }: { children: React.Reac
   const usuario = await usuarioActual();
   const conSesion = Boolean(await sesionActual());
   const desarrollo = modoDesarrollo();
-  const usuarios = desarrollo ? await listarUsuarios(await baseDeDatos(), usuario.consultorio.id) : [];
+  // El selector ofrece solo las cuentas de la semilla (y la de la sesión iniciada, si es otra).
+  const usuarios = desarrollo ? (await listarUsuarios(await baseDeDatos(), usuario.consultorio.id)).filter((u) => esUsuarioDePrueba(u.email) || u.id === usuario.id) : [];
   const haceSeguimiento = puede(usuario, 'seguimientos.gestionar');
   const pendientes = haceSeguimiento ? await pendientesParaHoy() : 0;
   const administra = puede(usuario, 'usuarios.administrar');

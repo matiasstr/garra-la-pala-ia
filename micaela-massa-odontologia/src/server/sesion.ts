@@ -2,6 +2,7 @@ import 'server-only';
 import { cookies, headers } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { cache } from 'react';
+import { esUsuarioDePrueba } from '../db/acceso-de-prueba';
 import { baseDeDatos } from '../db/client';
 import { buscarSesion, politicaDeSesion, validarSesion } from './acceso/autenticacion';
 import type { DatosDelPedido } from './acceso/registro';
@@ -77,17 +78,22 @@ export async function pasoDeIngreso(): Promise<{ paso: 'activa' | 'falta_codigo'
   return { paso: sesion.estado, usuarioId: sesion.usuarioId };
 }
 
+/**
+ * Usuario elegido en el selector de prueba. Solo cuentas de la semilla (del
+ * dominio `@consultorio.local`): las que se crean durante la prueba entran
+ * con su contraseña, como en el sistema real.
+ */
 async function usuarioDePrueba(): Promise<UsuarioSesion> {
   const db = await baseDeDatos();
   const elegido = (await cookies()).get(COOKIE_USUARIO_DESARROLLO)?.value;
   const usuario = elegido ? await cargarUsuario(db, elegido) : null;
-  if (usuario) return usuario;
+  if (usuario && esUsuarioDePrueba(usuario.email)) return usuario;
 
   // Por defecto, la primera secretaria: es quien abre el consultorio.
-  const usuarios = await listarUsuarios(db);
+  const usuarios = (await listarUsuarios(db)).filter((u) => esUsuarioDePrueba(u.email));
   const porDefecto = usuarios.find((u) => u.roles.includes('secretaria')) ?? usuarios[0];
   const cargado = porDefecto ? await cargarUsuario(db, porDefecto.id) : null;
-  if (!cargado) throw new Error('No hay usuarios cargados.');
+  if (!cargado) throw new Error('No hay usuarios de prueba cargados.');
   return cargado;
 }
 

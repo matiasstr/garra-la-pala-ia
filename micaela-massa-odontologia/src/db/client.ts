@@ -2,8 +2,10 @@ import 'server-only';
 import { mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { hoyEnArgentina } from '../lib/fechas';
+import { problemaDeConfiguracion } from '../lib/modo';
 import { permiteReiniciarDemo } from '../server/demo';
 import { directorioDatosLocales, modoDesarrollo } from '../server/entorno';
+import { exigirBaseReal } from './marca-de-prueba';
 import * as schema from './schema';
 import type { BaseDeDatos } from './tipos';
 
@@ -15,6 +17,12 @@ import type { BaseDeDatos } from './tipos';
  *   migraciones y los datos de prueba al conectar;
  * - sin ella y en modo desarrollo, un Postgres embebido (PGlite) en `.data/pglite`,
  *   también con las migraciones aplicadas y datos de prueba.
+ *
+ * Antes de usarla se comprueba que la configuración y la base vayan juntas
+ * (si no, ningún pedido funciona y el error explica por qué):
+ * - una demo compilada (`MODO_DESARROLLO=1` en producción) exige `DEMO_CLAVE`;
+ * - el modo desarrollo solo usa una base vacía o marcada como de prueba;
+ * - el modo real nunca usa una base de prueba (ver `marca-de-prueba.ts`).
  *
  * Se guarda en `globalThis` para que la recarga en caliente de Next.js no abra
  * dos instancias sobre la misma carpeta.
@@ -59,6 +67,8 @@ export async function reiniciarDatosDePrueba(): Promise<void> {
 const carpetaMigraciones = () => path.join(process.cwd(), 'drizzle');
 
 async function conectar(): Promise<Conexion> {
+  const problema = problemaDeConfiguracion();
+  if (problema) throw new Error(problema);
   const url = process.env.DATABASE_URL;
   if (url) {
     const [{ Pool }, { drizzle }, { urlDeConexion }] = await Promise.all([import('pg'), import('drizzle-orm/node-postgres'), import('./preparar')]);
@@ -68,7 +78,16 @@ async function conectar(): Promise<Conexion> {
     const pool = new Pool({ connectionString: urlDeConexion(url), max: 5, idleTimeoutMillis: 10_000, connectionTimeoutMillis: 15_000 });
     // Una conexión ociosa que la base corta (por ejemplo, al dormirse) no debe tirar el servidor.
     pool.on('error', (error) => console.error('Se cortó una conexión ociosa con la base:', error.message));
-    return { db: drizzle(pool, { schema }), reiniciar: () => prepararPostgres({ reiniciar: true }) };
+    const db = drizzle(pool, { schema });
+    if (!modoDesarrollo()) {
+      try {
+        await exigirBaseReal(db);
+      } catch (error) {
+        await pool.end();
+        throw error;
+      }
+    }
+    return { db, reiniciar: () => prepararPostgres({ reiniciar: true }) };
   }
   if (!modoDesarrollo()) throw new Error('Falta DATABASE_URL (ver .env.example).');
   // En Vercel no hay disco donde guardar la base embebida.

@@ -1,5 +1,6 @@
 import { createHash, timingSafeEqual } from 'node:crypto';
 import { NextResponse, type NextRequest } from 'next/server';
+import { modoDesarrollo, problemaDeConfiguracion } from './lib/modo';
 
 /**
  * Proxy de Next.js 16 (el reemplazo de `middleware`): corre antes de cada
@@ -12,10 +13,9 @@ import { NextResponse, type NextRequest } from 'next/server';
  *    que vale (sesión vigente, código verificado, usuario activo, permisos) la
  *    hace el servidor en `usuarioActual()` y en cada función de `src/server/`.
  *
- * No importa `src/server/entorno.ts` (usa `server-only`), así que repite acá
- * la regla de `modoDesarrollo()`.
+ * Antes que nada, si la configuración es peligrosa (una demo compilada sin
+ * `DEMO_CLAVE`), responde 503 a todo: ver `problemaDeConfiguracion`.
  */
-const enDesarrollo = () => process.env.NODE_ENV !== 'production' || process.env.MODO_DESARROLLO === '1';
 
 /** Las mismas que `nombreCookieSesion()` en src/server/sesion.ts. */
 const COOKIES_DE_SESION = ['__Host-mm_sesion', 'mm_sesion'];
@@ -42,6 +42,9 @@ function demoAutorizada(pedido: NextRequest, clave: string): boolean {
 }
 
 export function proxy(pedido: NextRequest) {
+  const problema = problemaDeConfiguracion();
+  if (problema) return new NextResponse(problema, { status: 503, headers: { 'Content-Type': 'text/plain; charset=utf-8', 'Cache-Control': 'no-store' } });
+
   const claveDemo = process.env.DEMO_CLAVE;
   if (claveDemo && !demoAutorizada(pedido, claveDemo)) {
     return new NextResponse('Esta demo pide una contraseña.', {
@@ -56,7 +59,7 @@ export function proxy(pedido: NextRequest) {
   encabezados.set(ENCABEZADO_RUTA, `${pathname}${search}`);
   const seguir = () => NextResponse.next({ request: { headers: encabezados } });
 
-  if (enDesarrollo() || esPublica(pathname)) return seguir();
+  if (modoDesarrollo() || esPublica(pathname)) return seguir();
   if (COOKIES_DE_SESION.some((nombre) => pedido.cookies.has(nombre))) return seguir();
 
   if (pedido.method === 'GET' || pedido.method === 'HEAD') {

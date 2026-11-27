@@ -65,13 +65,14 @@ export interface UsuarioListado {
   id: string;
   nombre: string;
   apellido: string;
+  email: string;
   roles: Rol[];
 }
 
 /** Usuarios activos con sus roles (de un consultorio, si se indica). */
 export async function listarUsuarios(db: BaseDeDatos, consultorioId?: string): Promise<UsuarioListado[]> {
   const filas = await db
-    .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, rol: usuarioRoles.rol })
+    .select({ id: usuarios.id, nombre: usuarios.nombre, apellido: usuarios.apellido, email: usuarios.email, rol: usuarioRoles.rol })
     .from(usuarios)
     .innerJoin(usuarioRoles, eq(usuarioRoles.usuarioId, usuarios.id))
     .innerJoin(consultorioMiembros, and(eq(consultorioMiembros.usuarioId, usuarioRoles.usuarioId), eq(consultorioMiembros.consultorioId, usuarioRoles.consultorioId)))
@@ -79,7 +80,7 @@ export async function listarUsuarios(db: BaseDeDatos, consultorioId?: string): P
     .orderBy(asc(usuarios.apellido), asc(usuarios.nombre));
   const porId = new Map<string, UsuarioListado>();
   for (const fila of filas) {
-    const usuario = porId.get(fila.id) ?? { id: fila.id, nombre: fila.nombre, apellido: fila.apellido, roles: [] };
+    const usuario = porId.get(fila.id) ?? { id: fila.id, nombre: fila.nombre, apellido: fila.apellido, email: fila.email, roles: [] };
     if (!usuario.roles.includes(fila.rol)) usuario.roles.push(fila.rol);
     porId.set(fila.id, usuario);
   }

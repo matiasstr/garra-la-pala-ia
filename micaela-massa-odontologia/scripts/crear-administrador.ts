@@ -9,12 +9,14 @@
  *
  * Usa `DATABASE_URL` (o la de `.env.local`). Imprime un enlace de un solo uso:
  * con él la persona elige su contraseña y configura la verificación en dos
- * pasos. Corre con `tsx`, que ya viene instalado con drizzle-kit.
+ * pasos. Se niega a trabajar sobre una base de prueba (sembrada por el modo
+ * desarrollo). Corre con `tsx`, que ya viene instalado con drizzle-kit.
  */
 import { existsSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import pg from 'pg';
+import { ErrorDeBaseDeDatos, exigirBaseReal } from '../src/db/marca-de-prueba';
 import * as schema from '../src/db/schema';
 import { ESPECIALIDADES, type Especialidad } from '../src/domain/permisos/roles';
 import { crearPrimerAdministrador, recuperarAccesoPorConsola } from '../src/server/acceso/administracion';
@@ -57,6 +59,13 @@ async function principal() {
   const pool = new pg.Pool({ connectionString: url, max: 2 });
   const db = drizzle(pool, { schema });
   try {
+    // Nunca sobre una base de prueba: sus usuarios tienen contraseñas públicas.
+    try {
+      await exigirBaseReal(db);
+    } catch (error) {
+      if (error instanceof ErrorDeBaseDeDatos) salir(error.message);
+      throw error;
+    }
     if (opciones.recuperar) {
       const resultado = await recuperarAccesoPorConsola(db, opciones.recuperar);
       if (!resultado.ok) salir(resultado.error);

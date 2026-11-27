@@ -37,6 +37,14 @@ Sin `DATABASE_URL` y fuera de producción (o con `MODO_DESARROLLO=1`):
 
 Fuera de modo desarrollo hace falta `DATABASE_URL` y `CLAVE_SECRETOS`, y todo pide ingresar.
 
+**Barrera entre la demo y la base real.** Los usuarios de la semilla tienen contraseñas públicas y el selector entra sin contraseña: una base sembrada nunca puede servir en modo real, y el modo desarrollo nunca puede abrir la base del consultorio. Lo controla `src/db/marca-de-prueba.ts`, al conectar (`src/db/client.ts`):
+
+- La semilla solo corre sobre una base vacía (sin usuarios, consultorios ni pacientes), y lo primero que hace es dejar la marca: una fila en `base_de_prueba` que no se puede cambiar, borrar ni vaciar (`drizzle/0012_base_de_prueba_sql.sql`). Una base de prueba nunca deja de serlo.
+- **Modo desarrollo:** si la base tiene datos y no tiene la marca, no arranca y explica por qué (podría ser la del consultorio). "Reiniciar datos de prueba" también lo comprueba antes de descartar nada.
+- **Modo real:** si la base tiene la marca, o usuarios del dominio de la semilla (`@consultorio.local`, las bases de prueba de antes de la marca), no arranca: "esta base tiene datos de prueba". `npm run crear-administrador` tampoco trabaja sobre ella.
+- **Demo compilada:** con `NODE_ENV=production` (`npm start` o Vercel) y `MODO_DESARROLLO=1`, `DEMO_CLAVE` es obligatoria. Sin ella, `src/proxy.ts` responde 503 a todo y la conexión a la base se niega (`problemaDeConfiguracion` en `src/lib/modo.ts`).
+- El selector de usuario de prueba solo acepta cuentas `@consultorio.local`; las personas creadas durante la prueba entran con su contraseña.
+
 ## Inicio de sesión
 
 Implementado sin dependencias nuevas, con `node:crypto`. Código: `src/domain/acceso/` (reglas puras, con tests), `src/server/acceso/` (base de datos) y `src/server/sesion.ts` (cookies de Next.js).
@@ -63,7 +71,7 @@ Implementado sin dependencias nuevas, con `node:crypto`. Código: `src/domain/ac
 
 Ya hay consultorios, pertenencia y roles por consultorio, y la sesión lleva el consultorio activo. Los datos clínicos y administrativos todavía no tienen `consultorio_id`: el plan (columna en cada tabla, seguridad por fila de PostgreSQL, archivos y auditoría) está en [`multi-consultorio.md`](multi-consultorio.md).
 
-**Demo online** (modo desarrollo con `DATABASE_URL`, por ejemplo Vercel + Neon; ver [`demo.md`](demo.md)): al conectar se aplican las migraciones y los datos de prueba, con un *advisory lock* para que varias instancias no lo hagan a la vez; las fotos van a la tabla `archivos` de la base, porque el disco no dura; la semilla carga turnos para hoy y los próximos días hábiles, y con `DEMO_PERMITE_REINICIO=1` se pueden reiniciar los datos desde la app. Fuera de modo desarrollo nunca se migra ni se siembra solo.
+**Demo online** (modo desarrollo con `DATABASE_URL`, por ejemplo Vercel + Neon; ver [`demo.md`](demo.md)): al conectar se aplican las migraciones y los datos de prueba (solo si la base está vacía o tiene la marca de base de prueba), con un *advisory lock* para que varias instancias no lo hagan a la vez; las fotos van a la tabla `archivos` de la base, porque el disco no dura; la semilla carga turnos para hoy y los próximos días hábiles, y con `DEMO_PERMITE_REINICIO=1` se pueden reiniciar los datos desde la app. Fuera de modo desarrollo nunca se migra ni se siembra solo.
 
 ## Decisiones de la agenda y la ficha
 

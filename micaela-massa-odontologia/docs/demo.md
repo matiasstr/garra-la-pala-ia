@@ -41,7 +41,7 @@ La cuenta de Vercel se crea con la de GitHub, y Neon se agrega desde adentro de 
    | --- | --- | --- |
    | `MODO_DESARROLLO` | `1` | Activa los datos y los usuarios de prueba |
    | `DEMO_PERMITE_REINICIO` | `1` | Muestra el botón **Reiniciar datos de prueba** |
-   | `DEMO_CLAVE` | una contraseña que elijas | La contraseña que pide el navegador para entrar |
+   | `DEMO_CLAVE` | una contraseña que elijas | La contraseña que pide el navegador para entrar. Es obligatoria: sin ella la demo no arranca |
 
    Para `DEMO_CLAVE` usá una contraseña larga (por ejemplo, tres palabras y un número) y compartila solo con quien vaya a probar.
 
@@ -82,6 +82,7 @@ La primera vez tarda unos segundos más: el sistema arma la base y carga los dat
   - en Vercel: **Settings** → **Environments** → **Production** → **Branch Tracking**, escribir el nombre de la rama y guardar. Se aplica con el próximo cambio que se suba a esa rama (o con **Redeploy**).
 - Los cambios en otras ramas generan "vistas previas" con otra dirección, que Vercel protege con su propio inicio de sesión. Para la demo no se usan.
 - Cuando una versión nueva trae cambios en la base, se aplican solos al abrirla. Los datos que ya estaban se conservan.
+- **Excepción, una sola vez:** una demo armada antes de la "marca de base de prueba" (noviembre de 2026) no arranca con la versión nueva: el sistema se niega a usar una base con datos que no esté marcada como de prueba, por si fuera la del consultorio. Se arregla vaciando la base con el SQL de [Si algo no anda](#si-algo-no-anda); la próxima visita la vuelve a armar, ya marcada.
 
 ## Reiniciar los datos de prueba
 
@@ -125,6 +126,8 @@ Esta demo **no** es la instalación del consultorio. Para usar el sistema con pa
 ## Si algo no anda
 
 - **La página muestra "Algo salió mal" después de publicar:** revisá que la base esté conectada (paso 3) y que se haya hecho **Redeploy** después (paso 4). En Vercel, **Settings** → **Environment Variables** tiene que mostrar `DATABASE_URL`.
+- **La página dice "El sistema no arranca: MODO_DESARROLLO=1 en una versión compilada… necesita DEMO_CLAVE":** falta la variable `DEMO_CLAVE` (paso 2). Agregala en **Settings** → **Environment Variables** y hacé **Redeploy**.
+- **"Algo salió mal", y en los registros de Vercel (**Logs**) dice "El modo desarrollo se niega a usar esta base":** la base tiene datos pero no está marcada como base de prueba. Si es la base de la demo (armada con una versión vieja), vaciala con el SQL de más abajo. Si es la base real del consultorio, la demo está conectada a la base equivocada: desconectala.
 - **Todo anda muy lento:** revisá que la base esté en São Paulo. En Vercel, **Storage** → la base → región. Si no, hay que crear otra base en São Paulo y conectarla en lugar de la anterior.
 - **Después de una actualización no abre y el reinicio tampoco:** abrí la base desde Vercel (**Storage** → la base → **Open in Neon**), entrá a **SQL Editor**, pegá esto y tocá **Run**. Borra todo; la próxima visita vuelve a armar la base con los datos de prueba:
 
@@ -136,8 +139,8 @@ Esta demo **no** es la instalación del consultorio. Para usar el sistema con pa
 
 ## Para quien mantiene el sistema
 
-- **Variables:** `MODO_DESARROLLO=1` activa datos y usuarios de prueba (selector en lugar de inicio de sesión). `DEMO_PERMITE_REINICIO=1` habilita el reinicio (además de `MODO_DESARROLLO=1`; se verifica en el servidor, en `permiteReiniciarDemo`). `DEMO_CLAVE` activa la contraseña compartida (autenticación HTTP Basic en `proxy.ts`). `DATABASE_URL` (con pooler) y `DATABASE_URL_UNPOOLED` (directa) las carga la integración de Neon.
-- **Arranque:** en modo desarrollo con `DATABASE_URL`, la primera conexión de cada instancia aplica las migraciones y siembra si la base está vacía (`src/db/client.ts` y `src/db/preparar.ts`). Lo hace por la conexión directa (`DATABASE_URL_UNPOOLED`; si falta, se saca `-pooler` del servidor de Neon) con un *advisory lock* de PostgreSQL, para que varias instancias que arrancan a la vez no migren dos veces. El pooler de Neon (PgBouncer en modo transacción) no respeta esos bloqueos de sesión. Fuera de modo desarrollo no se migra ni se siembra solo: se usa `npm run db:migrate`.
+- **Variables:** `MODO_DESARROLLO=1` activa datos y usuarios de prueba (selector en lugar de inicio de sesión, solo con las cuentas `@consultorio.local` de la semilla). `DEMO_PERMITE_REINICIO=1` habilita el reinicio (además de `MODO_DESARROLLO=1`; se verifica en el servidor, en `permiteReiniciarDemo`). `DEMO_CLAVE` activa la contraseña compartida (autenticación HTTP Basic en `proxy.ts`) y es obligatoria con `MODO_DESARROLLO=1` en una versión compilada: sin ella el proxy responde 503 y la base no se conecta. `DATABASE_URL` (con pooler) y `DATABASE_URL_UNPOOLED` (directa) las carga la integración de Neon.
+- **Arranque:** en modo desarrollo con `DATABASE_URL`, la primera conexión de cada instancia aplica las migraciones y siembra si la base está vacía (`src/db/client.ts` y `src/db/preparar.ts`). La semilla deja la marca de base de prueba (`base_de_prueba`); si la base tiene datos y no tiene la marca, la demo no arranca, y el modo real nunca arranca sobre una base con la marca (ver `docs/arquitectura.md`, "Barrera entre la demo y la base real"). Lo hace por la conexión directa (`DATABASE_URL_UNPOOLED`; si falta, se saca `-pooler` del servidor de Neon) con un *advisory lock* de PostgreSQL, para que varias instancias que arrancan a la vez no migren dos veces. El pooler de Neon (PgBouncer en modo transacción) no respeta esos bloqueos de sesión. Fuera de modo desarrollo no se migra ni se siembra solo: se usa `npm run db:migrate`.
 - **Conexiones:** la aplicación usa `DATABASE_URL` (con pooler) con pocas conexiones (5) que se cierran a los 10 segundos sin uso. `sslmode=require` se pide como `verify-full`, que es lo que node-postgres ya hace hoy, sin el aviso de cambio futuro.
 - **Archivos:** en Vercel el disco no dura, así que las fotos se guardan en la tabla `archivos` (`bytea`), con el SHA-256 como nombre; la base comprueba la huella y rechaza `UPDATE`, `DELETE` y `TRUNCATE`. Con PGlite (sin `DATABASE_URL`) siguen yendo a `.data/archivos`.
 - **Reinicio:** como los triggers impiden borrar lo clínico fila por fila, el reinicio descarta los esquemas `public` y `drizzle` (`drop schema … cascade`), migra de nuevo y siembra con la fecha de hoy, todo con el mismo bloqueo. Queda registrado en `auditoria_accesos` (`demo.reiniciar`).
@@ -146,7 +149,7 @@ Esta demo **no** es la instalación del consultorio. Para usar el sistema con pa
 
   ```bash
   npm run build
-  DATABASE_URL=postgres://usuario:clave@localhost:5432/mm_demo MODO_DESARROLLO=1 DEMO_PERMITE_REINICIO=1 npm start
+  DATABASE_URL=postgres://usuario:clave@localhost:5432/mm_demo MODO_DESARROLLO=1 DEMO_CLAVE=una-clave DEMO_PERMITE_REINICIO=1 npm start
   ```
 
 - **Tests con PostgreSQL real** (varias instancias a la vez; vacía la base indicada):

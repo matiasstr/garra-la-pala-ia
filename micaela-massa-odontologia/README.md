@@ -47,19 +47,34 @@ npm install
 npm test
 ```
 
+El sistema se usa de dos formas que **nunca se mezclan**:
+
+| | Desarrollo y demo | Instalación real del consultorio |
+| --- | --- | --- |
+| Para qué | Probar y mostrar, con datos inventados | Pacientes reales |
+| Base de datos | Una base que siembra el propio sistema y marca como "base de prueba" | Una base nueva, solo para el consultorio |
+| Ingreso | Selector de usuario sin contraseña, y usuarios de prueba con contraseña pública | Contraseña y verificación en dos pasos de cada persona |
+| Cómo se activa | `npm run dev`, o `MODO_DESARROLLO=1` con `DEMO_CLAVE` | Sin `MODO_DESARROLLO`, con `DATABASE_URL`, `CLAVE_SECRETOS` y `URL_PUBLICA` |
+
+El sistema se niega a mezclarlas: el modo desarrollo no arranca sobre una base con datos que no esté marcada como de prueba (podría ser la del consultorio), y el modo real no arranca sobre una base de prueba ("esta base tiene datos de prueba"), porque sus usuarios tienen contraseñas públicas. Una versión compilada con `MODO_DESARROLLO=1` tampoco arranca sin `DEMO_CLAVE`.
+
+### Desarrollo y demo (datos inventados)
+
 ```bash
 npm run dev
 ```
 
 Abre en http://localhost:3000. Sin `DATABASE_URL`, la app usa una base PostgreSQL embebida en `.data/` y la carga con pacientes, turnos, usuarios e historias clínicas inventados. Arriba a la derecha se elige con qué usuario de prueba navegar (secretaria, odontóloga, endodoncista o alguien de administración que no atiende) para ver qué permite cada rol. Las profesionales de prueba firman con el PIN **1234**. El tablero de pendientes arranca con casos variados: un tratamiento sin turno marcado como importante, un presupuesto sin respuesta, un ausente, un control de 6 meses por vencer y un paciente que no responde después de 3 intentos.
 
-Para volver a los datos de prueba del día (también hace falta después de actualizar, si la app no arranca por un cambio en la base):
+Para volver a los datos de prueba del día:
 
 ```bash
 npm run db:reset
 ```
 
-### Usuarios de prueba (solo desarrollo)
+También hace falta después de actualizar, si la app no arranca por un cambio en la base. En particular, las bases de desarrollo creadas antes de la marca de base de prueba (el sistema avisa que "se niega a usar esta base") se arreglan así.
+
+#### Usuarios de prueba
 
 En modo desarrollo también se puede probar el inicio de sesión real en http://localhost:3000/ingresar:
 
@@ -72,23 +87,29 @@ En modo desarrollo también se puede probar el inicio de sesión real en http://
 - Contraseña de todos: `prueba-consultorio`.
 - Clave de la app de autenticación (la misma para los tres): `MICAMASSAPRUEBA2MICAMASSAPRUEBA2`. Se carga en Google Authenticator o similar con "Ingresar una clave de configuración", tipo "basada en el tiempo".
 
-Son datos inventados y públicos: la semilla nunca se carga en una base real.
+Son datos inventados y públicos. Por eso la semilla solo se carga en una base vacía, la marca como base de prueba, y el modo real se niega a usar esa base. El selector de usuario solo ofrece estas cuentas (las de `@consultorio.local`): un usuario creado durante la prueba entra con su contraseña, como en el sistema real.
+
+#### Demo compilada y demo online
 
 Para mostrar una demo con la versión compilada (más rápida), en Linux o macOS:
 
 ```bash
-npm run build && MODO_DESARROLLO=1 npm start
+npm run build && MODO_DESARROLLO=1 DEMO_CLAVE=<contraseña> npm start
 ```
 
-`MODO_DESARROLLO=1` activa los datos y usuarios de prueba: nunca usarlo con pacientes reales.
+`MODO_DESARROLLO=1` activa los datos y usuarios de prueba, y `DEMO_CLAVE` hace que el navegador pida esa contraseña en todo el sitio (cualquier usuario). Sin `DEMO_CLAVE` la versión compilada no arranca: cualquiera que llegara a la dirección entraría sin contraseña.
 
 Para publicar una demo online con datos inventados (Vercel + Neon, gratis), seguir [`docs/demo.md`](docs/demo.md).
 
-Para mostrar la demo online con contraseña, agregar `DEMO_CLAVE=<contraseña>`: el navegador la pide en todo el sitio (cualquier usuario).
+### Instalación real
 
-### Con una base real
+Para el consultorio, con pacientes reales. Usa una base PostgreSQL nueva, que nunca pasó por el modo desarrollo, y nunca `MODO_DESARROLLO` ni `DEMO_PERMITE_REINICIO`.
 
-Copiar `.env.example` a `.env.local` y completar `DATABASE_URL`, `CLAVE_SECRETOS` (al menos 32 caracteres al azar, por ejemplo `openssl rand -base64 48`; si se pierde, todos tienen que volver a configurar la app de autenticación) y `URL_PUBLICA`. Después, aplicar las migraciones:
+Copiar `.env.example` a `.env.local` y completar `DATABASE_URL`, `CLAVE_SECRETOS` (al menos 32 caracteres al azar, por ejemplo `openssl rand -base64 48`; si se pierde, todos tienen que volver a configurar la app de autenticación) y `URL_PUBLICA`.
+
+> **Nunca compartas `.env.local`**: ni por WhatsApp o email, ni en el repositorio, ni copiado a otra computadora "para probar". Tiene la contraseña de la base y `CLAVE_SECRETOS`: con eso se leen los datos de los pacientes y se descifran las claves de las apps de autenticación. Cada instalación tiene el suyo, y la demo nunca usa el de la instalación real.
+
+Después, aplicar las migraciones:
 
 ```bash
 npm run db:migrate
@@ -107,7 +128,9 @@ Imprime un enlace de un solo uso (vence a las 72 horas): con él se elige la con
 npm run crear-administrador -- --recuperar mica@ejemplo.com --url https://sistema.ejemplo.com.ar
 ```
 
-`npm run db:migrate` y `npm run crear-administrador` leen `DATABASE_URL` del entorno (el segundo también de `.env.local`). El comando corre TypeScript con `tsx`, que ya viene instalado con drizzle-kit.
+`npm run db:migrate` y `npm run crear-administrador` leen `DATABASE_URL` del entorno (el segundo también de `.env.local`). El comando corre TypeScript con `tsx`, que ya viene instalado con drizzle-kit, y se niega a trabajar sobre una base de prueba.
+
+En producción, el sistema tiene que estar detrás de un proxy de confianza que fije el encabezado `X-Forwarded-For` (en Vercel lo hace la plataforma; con nginx o Caddy hay que configurarlo): de ahí sale la IP de los bloqueos y de la auditoría (ver [`docs/arquitectura.md`](docs/arquitectura.md), "Inicio de sesión").
 
 ## Estructura
 
@@ -122,8 +145,8 @@ src/
     pacientes/       Duplicados, homónimos, edad y consentimiento de menores
     agenda/          Estados de turno y recordatorio por WhatsApp con un clic
     seguimiento/     "¿Cuándo debería volver?", reglas, intentos y orden del tablero de pendientes
-  lib/               Fechas y horas en hora argentina
-  db/                Esquema Drizzle, conexión y datos de prueba
+  lib/               Fechas y horas en hora argentina; reglas del modo desarrollo
+  db/                Esquema Drizzle, conexión, datos de prueba y marca de base de prueba
   server/            Pacientes, agenda, pendientes, archivos, usuarios y sesión (con permisos)
     acceso/          Ingreso, sesiones, "Mi cuenta", administración de usuarios y enlaces de un solo uso
     hc/              Firmar registros, PIN, evoluciones, adjuntos y la pantalla de la HC (auditado)
@@ -133,7 +156,7 @@ src/
   app/configurar-acceso/  Primer ingreso y blanqueos con el enlace de un solo uso
   app/(sistema)/     Pantallas: agenda, pacientes, ficha, pendientes, historia clínica, PIN de firma, mi cuenta y usuarios
 scripts/             Comandos de consola (crear-administrador)
-drizzle/             Migraciones SQL (0001 = inalterabilidad; 0006 = vínculos de la HC; 0008 = pendientes; 0010 = acceso)
+drizzle/             Migraciones SQL (0001 = inalterabilidad; 0006 = vínculos de la HC; 0008 = pendientes; 0010 = acceso; 0012 = marca de base de prueba)
 tests/db/            Tests contra Postgres en memoria
 docs/                Arquitectura, modelo de datos y requisitos legales
 ```

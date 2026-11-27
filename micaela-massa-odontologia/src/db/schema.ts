@@ -781,3 +781,24 @@ export const archivos = pgTable(
     check('archivos_tamanio', sql`${t.bytes} = octet_length(${t.contenido})`),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// Marca de base de prueba (ver src/db/marca-de-prueba.ts)
+// ---------------------------------------------------------------------------
+
+/**
+ * Una sola fila que deja la semilla del modo desarrollo: "esta base tiene
+ * datos y usuarios inventados, con credenciales públicas". El modo desarrollo
+ * solo funciona sobre una base con la marca (o vacía), y el modo real se niega
+ * a usar una base que la tenga. No se puede cambiar ni borrar (trigger en la
+ * migración `base_de_prueba_sql`): una base de prueba nunca deja de serlo.
+ */
+export const baseDePrueba = pgTable(
+  'base_de_prueba',
+  {
+    /** Siempre `true`: la clave primaria hace que haya una sola fila. */
+    unica: boolean('unica').primaryKey().default(true),
+    creadaEn: creadoEn(),
+  },
+  (t) => [check('base_de_prueba_una_fila', sql`${t.unica}`)],
+);
