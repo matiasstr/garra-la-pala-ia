@@ -8,7 +8,7 @@ import { puedeFirmarRegistroClinico } from '@/domain/permisos/permisos';
 import { fechaDe, formatoFechaCorta, formatoHora } from '@/lib/fechas';
 import { estadoPinDeFirma } from '@/server/hc/pin';
 import { usuarioActual } from '@/server/sesion';
-import { guardarPinAccion } from './acciones';
+import { guardarPinAccion, reponerPinAccion } from './acciones';
 
 export const metadata: Metadata = { title: 'PIN de firma · Micaela Massa Odontología' };
 
@@ -52,7 +52,7 @@ export default async function PaginaPinDeFirma({ searchParams }: { searchParams:
           <li>
             Si te equivocás {MAXIMO_INTENTOS_PIN} veces seguidas, se bloquea {MINUTOS_BLOQUEO_PIN} minutos.
           </li>
-          <li>Si te lo olvidás, pedile a la administración que lo restablezca y creá uno nuevo.</li>
+          <li>Si te lo olvidás, abajo podés poner uno nuevo confirmando con tu contraseña y un código de la app del celular.</li>
         </ul>
       </section>
 
@@ -91,6 +91,38 @@ export default async function PaginaPinDeFirma({ searchParams }: { searchParams:
           </div>
         </FormularioAccion>
       </section>
+
+      {estado.tienePin && (
+        <section className="tarjeta pila" aria-labelledby="titulo-olvido">
+          <h2 id="titulo-olvido">¿Te olvidaste el PIN?</h2>
+          <p className="suave" style={{ margin: 0 }}>
+            Poné uno nuevo sin el anterior. Para confirmar que sos vos, escribí tu contraseña y el código que muestra ahora la app de tu celular. Si el PIN estaba
+            bloqueado, también se destraba.
+          </p>
+          <FormularioAccion accion={reponerPinAccion} textoBoton="Poner PIN nuevo" reiniciarAlGuardar etiqueta="PIN olvidado">
+            <div className="fila-campos">
+              <label className="campo">
+                <span>Tu contraseña</span>
+                <input name="clave" type="password" autoComplete="current-password" required />
+              </label>
+              <label className="campo">
+                <span>Código de la app</span>
+                <input name="codigo" type="text" inputMode="numeric" pattern="[0-9 ]*" autoComplete="one-time-code" maxLength={7} required />
+              </label>
+            </div>
+            <div className="fila-campos">
+              <label className="campo">
+                <span>PIN nuevo</span>
+                <input name="nuevo" {...propsPin} />
+              </label>
+              <label className="campo">
+                <span>Repetí el PIN nuevo</span>
+                <input name="repeticion" {...propsPin} />
+              </label>
+            </div>
+          </FormularioAccion>
+        </section>
+      )}
     </main>
   );
 }

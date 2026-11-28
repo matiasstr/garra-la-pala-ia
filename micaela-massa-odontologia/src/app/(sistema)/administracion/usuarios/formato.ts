@@ -33,6 +33,7 @@ export const NOMBRE_MOVIMIENTO: Record<string, string> = {
   'firma.pin_incorrecto': 'Escribió mal su PIN de firma',
   'firma.pin_bloqueado': 'PIN de firma bloqueado por intentos fallidos',
   'firma.pin_restablecido': 'PIN de firma restablecido',
+  'firma.pin_repuesto': 'Puso un PIN de firma nuevo (lo había olvidado)',
 };
 
 export const ESTADO_PIN: Record<'sin_crear' | 'creado' | 'bloqueado', string> = {

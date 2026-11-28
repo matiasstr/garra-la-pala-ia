@@ -6,6 +6,8 @@ import { bloqueadoHasta, registrarIntentoPin, validarFormatoPin, validarPinNuevo
 import { puede, puedeFirmarRegistroClinico, type UsuarioConRoles } from '../../domain/permisos/permisos';
 import { formatoHora } from '../../lib/fechas';
 import { exigirMiembro } from '../acceso/administracion';
+import { confirmarIdentidad } from '../acceso/cuenta';
+import type { DatosDelPedido } from '../acceso/registro';
 import { ErrorDePermiso } from '../errores';
 import type { UsuarioSesion } from '../usuarios';
 import { auditar, type ContextoAuditoria } from './historia-clinica';
@@ -136,6 +138,41 @@ export async function guardarPinDeFirma(
       .set({ pinFirmaHash: huella, pinFirmaActualizadoEn: ahora, pinFirmaIntentosFallidos: 0, pinFirmaBloqueadoHasta: null })
       .where(eq(profesionales.usuarioId, usuario.id));
     await auditar(tx, { ...contexto, usuarioId: usuario.id, accion: estado.tienePin ? 'firma.pin_cambiado' : 'firma.pin_creado', entidad: 'profesional', entidadId: usuario.id });
+  });
+  return { errores: [] };
+}
+
+/**
+ * "¿Te olvidaste el PIN?": la propia profesional pone uno nuevo sin el
+ * anterior, confirmando quién es con su contraseña y un código de la app del
+ * celular. No depende de que haya otra persona en la administración, y con
+ * solo la sesión abierta en una computadora no alcanza para firmar a su
+ * nombre. También destraba un PIN bloqueado por intentos fallidos.
+ */
+export async function reponerPinOlvidado(
+  db: BaseDeDatos,
+  usuario: UsuarioSesion,
+  entrada: { clave: string; codigo: string; nuevo: string; repeticion: string },
+  pedido: DatosDelPedido,
+  ahora: Date = new Date(),
+): Promise<{ errores: string[] }> {
+  if (!puedeFirmarRegistroClinico(usuario)) throw new ErrorDePermiso('Solo los profesionales con matrícula tienen PIN de firma.');
+  const estado = await estadoPinDeFirma(db, usuario, ahora);
+  if (!estado.firma) throw new ErrorDePermiso('Tu usuario no está cargado como profesional.');
+
+  // Primero el PIN nuevo: si está mal, no se gasta el código de la app.
+  const errores = validarPinNuevo(entrada.nuevo, entrada.repeticion);
+  if (errores.length) return { errores };
+  const errorDeIdentidad = await confirmarIdentidad(db, usuario, { clave: entrada.clave, codigo: entrada.codigo }, pedido, ahora);
+  if (errorDeIdentidad) return { errores: [errorDeIdentidad] };
+
+  const huella = await hashearPin(entrada.nuevo);
+  await db.transaction(async (tx) => {
+    await tx
+      .update(profesionales)
+      .set({ pinFirmaHash: huella, pinFirmaActualizadoEn: ahora, pinFirmaIntentosFallidos: 0, pinFirmaBloqueadoHasta: null })
+      .where(eq(profesionales.usuarioId, usuario.id));
+    await auditar(tx, { ...pedido, usuarioId: usuario.id, accion: 'firma.pin_repuesto', entidad: 'profesional', entidadId: usuario.id, detalle: { teniaPin: estado.tienePin } });
   });
   return { errores: [] };
 }

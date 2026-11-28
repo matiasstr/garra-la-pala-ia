@@ -99,6 +99,39 @@ async function comprobarClaveActual(db: BaseDeDatos, usuario: UsuarioSesion, cla
   });
 }
 
+/**
+ * Confirma que quien usa la sesión es la persona: contraseña y un código de la
+ * app del celular, con el bloqueo propio de "Mi cuenta" (de a un pedido por
+ * persona). Para operaciones sensibles hechas desde una sesión ya abierta,
+ * como poner un PIN de firma nuevo cuando se olvidó el anterior: con solo la
+ * computadora abierta no alcanza. Devuelve el error para mostrar, o null.
+ */
+export async function confirmarIdentidad(
+  db: BaseDeDatos,
+  usuario: UsuarioSesion,
+  entrada: { clave: string; codigo: string },
+  pedido: DatosDelPedido,
+  ahora: Date = new Date(),
+): Promise<string | null> {
+  return conCandadoDeIntentos(db, candadoDeCuenta(usuario.id), async (tx) => {
+    const bloqueo = await bloqueoDeCuenta(tx, usuario.id, ahora);
+    if (bloqueo) return mensajeDeBloqueo(bloqueo, ahora);
+    const [fila] = await tx.select({ claveHash: usuarios.claveHash }).from(usuarios).where(eq(usuarios.id, usuario.id));
+    if (!fila?.claveHash || !(await verificarContrasena(entrada.clave, fila.claveHash))) {
+      await registrarIntento(tx, { emailHuella: huellaDeEmail(usuario.email), usuarioId: usuario.id, pedido, resultado: 'clave_incorrecta', ambito: 'cuenta', ahora });
+      return 'La contraseña no es correcta.';
+    }
+    const verificado = await usarCodigoDeApp(tx, usuario.id, entrada.codigo, ahora);
+    if (!verificado.ok) {
+      if (verificado.motivo !== 'formato') {
+        await registrarIntento(tx, { emailHuella: huellaDeEmail(usuario.email), usuarioId: usuario.id, pedido, resultado: 'codigo_incorrecto', ambito: 'cuenta', ahora });
+      }
+      return verificado.error;
+    }
+    return null;
+  });
+}
+
 /** Cambia la contraseña y cierra las demás sesiones abiertas. */
 export async function cambiarClave(
   db: BaseDeDatos,
