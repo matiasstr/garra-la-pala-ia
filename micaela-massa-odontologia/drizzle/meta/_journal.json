@@ -1,0 +1,111 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794941476887,
+      "tag": "0000_modelo_inicial",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794941487246,
+      "tag": "0001_inalterabilidad",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794960837243,
+      "tag": "0002_busqueda_pacientes",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795657920323,
+      "tag": "0003_demo",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795657924882,
+      "tag": "0004_demo_sql",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795723942753,
+      "tag": "0005_historia_clinica",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795723943688,
+      "tag": "0006_historia_clinica_sql",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795724208717,
+      "tag": "0007_pendientes",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795724209604,
+      "tag": "0008_pendientes_sql",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795755102620,
+      "tag": "0009_inicio_de_sesion",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795755109299,
+      "tag": "0010_inicio_de_sesion_sql",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795757461649,
+      "tag": "0011_base_de_prueba",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795757462390,
+      "tag": "0012_base_de_prueba_sql",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795757895799,
+      "tag": "0013_intentos_por_ambito",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795835152644,
+      "tag": "0014_sin_truncate",
+      "breakpoints": true
+    }
+  ]
+}

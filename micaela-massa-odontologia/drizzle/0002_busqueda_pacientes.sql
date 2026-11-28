@@ -1,0 +1,3 @@
+ALTER TABLE "pacientes" ADD COLUMN "nombre_normalizado" text GENERATED ALWAYS AS (btrim(regexp_replace(lower(translate(apellido || ' ' || nombre, 'ÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇáàäâãéèëêíìïîóòöôõúùüûñç', 'AAAAAEEEEIIIIOOOOOUUUUNCaaaaaeeeeiiiiooooouuuunc')), '[^a-z0-9]+', ' ', 'g'))) STORED;--> statement-breakpoint
+ALTER TABLE "pacientes" ADD COLUMN "texto_busqueda" text GENERATED ALWAYS AS (btrim(regexp_replace(lower(translate(apellido || ' ' || nombre, 'ÁÀÄÂÃÉÈËÊÍÌÏÎÓÒÖÔÕÚÙÜÛÑÇáàäâãéèëêíìïîóòöôõúùüûñç', 'AAAAAEEEEIIIIOOOOOUUUUNCaaaaaeeeeiiiiooooouuuunc')), '[^a-z0-9]+', ' ', 'g')) || ' ' || numero_documento) STORED;--> statement-breakpoint
+CREATE INDEX "pacientes_nombre_normalizado_idx" ON "pacientes" USING btree ("nombre_normalizado");
