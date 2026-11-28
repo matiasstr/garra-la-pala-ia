@@ -9,7 +9,7 @@
  * - Lo que pasa con cada pendiente queda en `pendiente_acciones` (solo agregar)
  *   y las acciones de las personas, también en `auditoria_accesos`.
  */
-import { and, asc, desc, eq, gt, gte, inArray, isNotNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, asc, desc, eq, gt, gte, inArray, isNotNull, isNull, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import {
   auditoriaAccesos,
@@ -250,6 +250,10 @@ export async function sincronizarPendientes(
   const resultado: ResultadoRecalculo = { creados: 0, resueltos: 0, reabiertos: 0 };
   if (ids && ids.length === 0) return resultado;
 
+  // Las filas se leen sin bloquear (el candado solo ordena los recálculos entre sí), así que
+  // cada UPDATE vuelve a exigir el estado que se leyó: una persona puede cerrar un pendiente
+  // a mano en el medio, y PostgreSQL reevalúa el WHERE después de esperar su fila.
+  const sigueActivo = inArray(pendientes.estado, [...ESTADOS_ACTIVOS]);
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${CANDADO_RECALCULO})`);
     const abiertos = await tx
@@ -296,10 +300,11 @@ export async function sincronizarPendientes(
           fila.profesionalId === cambios.profesionalId &&
           fila.indicacionId === cambios.indicacionId &&
           (fila.venceEn?.getTime() ?? null) === (cambios.venceEn?.getTime() ?? null);
-        if (!iguales) await tx.update(pendientes).set(cambios).where(eq(pendientes.id, fila.id));
+        // Solo si sigue activo: alguien lo pudo haber cerrado mientras tanto.
+        if (!iguales) await tx.update(pendientes).set(cambios).where(and(eq(pendientes.id, fila.id), sigueActivo));
       } else if (fila.estado === 'resuelto' && !fila.cerradoPor && vigente) {
         // Se había resuelto solo (sacó turno) y el turno ya no está: vuelve a la bandeja.
-        await tx
+        const [reabierto] = await tx
           .update(pendientes)
           .set({
             estado: fila.responsableId ? 'en_curso' : 'abierto',
@@ -311,7 +316,9 @@ export async function sincronizarPendientes(
             contactarDesdeOrigen: 'sistema',
             detalle: caso.detalle,
           })
-          .where(eq(pendientes.id, fila.id));
+          .where(and(eq(pendientes.id, fila.id), eq(pendientes.estado, 'resuelto'), isNull(pendientes.cerradoPor)))
+          .returning({ id: pendientes.id });
+        if (!reabierto) continue;
         await agregarAccion(tx, { pendienteId: fila.id, tipo: 'reabierto', usuarioId, origen: 'sistema', resultado: 'Ya no tiene turno: vuelve a la bandeja.', ocurridoEn: ahora });
         resultado.reabiertos++;
       }
@@ -322,10 +329,14 @@ export async function sincronizarPendientes(
       const situacion = situaciones.get(fila.pacienteId) ?? { pacienteId: fila.pacienteId, tieneTurnoFuturo: false };
       const motivo = motivoDeCierreAutomatico(fila.tipo, situacion, fila.desde);
       const porTurno = situacion.tieneTurnoFuturo && fila.tipo !== 'presupuesto_sin_respuesta' && fila.tipo !== 'conversacion_sin_respuesta';
-      await tx
+      // Solo si sigue activo: si alguien lo resolvió o descartó a mano mientras se recalculaba
+      // (con la fila bloqueada), su cierre queda como está.
+      const [resuelto] = await tx
         .update(pendientes)
         .set({ estado: 'resuelto', resueltoEn: ahora, cerradoPor: null, motivoCierre: motivo, resueltoPorTurnoId: porTurno ? (situacion.proximoTurno?.turnoId ?? null) : null })
-        .where(eq(pendientes.id, fila.id));
+        .where(and(eq(pendientes.id, fila.id), sigueActivo))
+        .returning({ id: pendientes.id });
+      if (!resuelto) continue;
       await agregarAccion(tx, { pendienteId: fila.id, tipo: 'resuelto', usuarioId, origen: 'sistema', resultado: `Se resolvió solo: ${motivo}`, ocurridoEn: ahora });
       resultado.resueltos++;
     }

@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate } from 'drizzle-orm/node-postgres/migrator';
 import { Client, Pool } from 'pg';
@@ -12,12 +12,14 @@ import { hoyEnArgentina } from '../../src/lib/fechas';
 import { ingresarConClave, ingresarConCodigo } from '../../src/server/acceso/autenticacion';
 import { cambiarClave } from '../../src/server/acceso/cuenta';
 import { crearTurno, reprogramarTurno } from '../../src/server/agenda';
+import { sincronizarPendientes } from '../../src/server/pendientes';
 import { cargarUsuario, type UsuarioSesion } from '../../src/server/usuarios';
 
 /**
  * Pedidos simultáneos de verdad: varias conexiones a PostgreSQL a la vez (en
  * PGlite hay una sola conexión y las transacciones se atienden de a una, así
- * que estas carreras no se ven). Solo corre con `PRUEBA_POSTGRES_URL`, y usa
+ * que estas carreras no se ven): intentos de ingreso, sillón, reprogramar y
+ * recálculo de pendientes contra un cierre a mano. Solo corre con `PRUEBA_POSTGRES_URL`, y usa
  * una base propia, la misma con `_concurrencia` al final del nombre, que se
  * borra y se crea de nuevo (`postgres-demo.test.ts` vacía la otra, y los
  * archivos de tests corren en paralelo). Por ejemplo:
@@ -69,6 +71,46 @@ describe.skipIf(!URL_PRUEBA)('pedidos simultáneos con PostgreSQL real', () => {
 
   afterAll(async () => {
     await pool?.end();
+  });
+
+  it('el recálculo de pendientes no pisa un pendiente que alguien cierra a mano mientras tanto', async () => {
+    const [pendiente] = await db
+      .select()
+      .from(schema.pendientes)
+      .where(and(eq(schema.pendientes.tipo, 'ausente_sin_reprogramar'), inArray(schema.pendientes.estado, ['abierto', 'en_curso', 'no_responde'])));
+    if (!pendiente) throw new Error('La semilla tendría que dejar un ausente sin reprogramar.');
+    // Saca turno sin pasar por la agenda: el próximo recálculo lo da por resuelto.
+    const inicio = new Date(Date.now() + 7 * 24 * 3600_000);
+    await db.insert(schema.turnos).values({ pacienteId: pendiente.pacienteId, profesionalId: mica.id, inicio, fin: new Date(inicio.getTime() + 30 * 60_000), creadoPor: sofia.id });
+
+    // Una secretaria lo está descartando (con la fila bloqueada, como descartarPendiente)...
+    const secretaria = new Client({ connectionString: urlPropia(URL_PRUEBA!).url });
+    await secretaria.connect();
+    try {
+      await secretaria.query('begin');
+      await secretaria.query('select id from pendientes where id = $1 for update', [pendiente.id]);
+      // ...cuando el recálculo lo lee como abierto y espera la fila para resolverlo.
+      let terminado = false;
+      const recalculo = sincronizarPendientes(db, { pacienteIds: [pendiente.pacienteId] }).finally(() => (terminado = true));
+      for (let i = 0; i < 200 && !terminado; i++) {
+        const { rows } = await pool.query("select count(*)::int as n from pg_stat_activity where datname = current_database() and wait_event_type = 'Lock'");
+        if (rows[0].n > 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(terminado, 'el recálculo tendría que estar esperando la fila').toBe(false);
+      await secretaria.query("update pendientes set estado = 'descartado', resuelto_en = now(), cerrado_por = $2, motivo_cierre = 'Se atiende en otro lado' where id = $1", [pendiente.id, sofia.id]);
+      await secretaria.query('commit');
+      expect((await recalculo).resueltos).toBe(0);
+    } finally {
+      await secretaria.end();
+    }
+    const [final] = await db.select().from(schema.pendientes).where(eq(schema.pendientes.id, pendiente.id));
+    expect(final).toMatchObject({ estado: 'descartado', cerradoPor: sofia.id, motivoCierre: 'Se atiende en otro lado' });
+    const resoluciones = await db
+      .select()
+      .from(schema.pendienteAcciones)
+      .where(and(eq(schema.pendienteAcciones.pendienteId, pendiente.id), eq(schema.pendienteAcciones.tipo, 'resuelto')));
+    expect(resoluciones).toEqual([]);
   });
 
   it('40 contraseñas a la vez con el mismo email: se comparan 5 y el resto queda bloqueado', async () => {
