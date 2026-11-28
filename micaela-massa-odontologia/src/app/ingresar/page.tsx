@@ -19,6 +19,9 @@ const AVISOS: Record<string, { clase: 'ok' | 'atencion'; texto: string }> = {
 };
 
 export default async function PaginaIngresar({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  // Antes que nada, la base: si el sistema se niega a usarla (por ejemplo, una base de prueba en modo
+  // real), la pantalla falla acá y no recién al escribir la contraseña.
+  const db = await baseDeDatos();
   const parametros = await searchParams;
   const volver = rutaInterna(typeof parametros.volver === 'string' ? parametros.volver : null);
   const motivo = typeof parametros.motivo === 'string' ? parametros.motivo : parametros.salio ? 'salio' : null;
@@ -26,7 +29,7 @@ export default async function PaginaIngresar({ searchParams }: { searchParams: P
 
   const paso = await pasoDeIngreso();
   if (paso?.paso === 'activa') redirect(volver);
-  const usuario = paso?.paso === 'falta_codigo' ? await cargarUsuario(await baseDeDatos(), paso.usuarioId) : null;
+  const usuario = paso?.paso === 'falta_codigo' ? await cargarUsuario(db, paso.usuarioId) : null;
 
   return (
     <main className="pantalla-acceso">
