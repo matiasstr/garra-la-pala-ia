@@ -99,6 +99,13 @@
       "when": 1795757895799,
       "tag": "0013_intentos_por_ambito",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795835152644,
+      "tag": "0014_sin_truncate",
+      "breakpoints": true
     }
   ]
 }

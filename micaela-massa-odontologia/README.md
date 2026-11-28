@@ -156,7 +156,7 @@ src/
   app/configurar-acceso/  Primer ingreso y blanqueos con el enlace de un solo uso
   app/(sistema)/     Pantallas: agenda, pacientes, ficha, pendientes, historia clínica, PIN de firma, mi cuenta y usuarios
 scripts/             Comandos de consola (crear-administrador)
-drizzle/             Migraciones SQL (0001 = inalterabilidad; 0006 = vínculos de la HC; 0008 = pendientes; 0010 = acceso; 0012 = marca de base de prueba)
+drizzle/             Migraciones SQL (0001 = inalterabilidad; 0006 = vínculos de la HC; 0008 = pendientes; 0010 = acceso; 0012 = marca de base de prueba; 0014 = sin TRUNCATE)
 tests/db/            Tests contra Postgres en memoria
 docs/                Arquitectura, modelo de datos y requisitos legales
 ```
