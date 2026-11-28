@@ -5,7 +5,9 @@ import type { BaseDeDatos } from '../../db/tipos';
 import { bloqueadoHasta, registrarIntentoPin, validarFormatoPin, validarPinNuevo } from '../../domain/firma/pin';
 import { puede, puedeFirmarRegistroClinico, type UsuarioConRoles } from '../../domain/permisos/permisos';
 import { formatoHora } from '../../lib/fechas';
+import { exigirMiembro } from '../acceso/administracion';
 import { ErrorDePermiso } from '../errores';
+import type { UsuarioSesion } from '../usuarios';
 import { auditar, type ContextoAuditoria } from './historia-clinica';
 
 /**
@@ -138,19 +140,40 @@ export async function guardarPinDeFirma(
   return { errores: [] };
 }
 
+export type ResultadoRestablecimiento = { ok: true; mensaje: string } | { ok: false; errores: string[] };
+
 /**
- * Si un profesional se olvida el PIN, la administración lo borra y él crea uno
- * nuevo desde su cuenta. Nunca se puede ver ni elegir el PIN de otro.
+ * Si un profesional se olvida el PIN, la administración de su consultorio lo
+ * borra y él crea uno nuevo desde su cuenta (sin el anterior). Nunca se puede
+ * ver ni elegir el PIN de otro. El propio no se restablece así: con la sesión
+ * de una administradora abierta, cualquiera podría firmar a su nombre.
  */
-export async function restablecerPinDeFirma(db: BaseDeDatos, administrador: UsuarioConRoles, profesionalId: string, contexto: ContextoAuditoria = {}): Promise<void> {
+export async function restablecerPinDeFirma(
+  db: BaseDeDatos,
+  administrador: UsuarioSesion,
+  profesionalId: string,
+  contexto: ContextoAuditoria = {},
+): Promise<ResultadoRestablecimiento> {
   if (!puede(administrador, 'usuarios.administrar')) throw new ErrorDePermiso('Solo la administración puede restablecer un PIN de firma.');
-  await db.transaction(async (tx) => {
+  const miembro = await exigirMiembro(db, administrador, profesionalId);
+  if (profesionalId === administrador.id) return { ok: false, errores: ['Tu propio PIN de firma lo cambiás desde "Mi cuenta", con el PIN actual.'] };
+  if (!miembro.activo || !miembro.cuentaActiva) return { ok: false, errores: ['El usuario está desactivado: reactivalo primero.'] };
+
+  return db.transaction(async (tx) => {
     const [fila] = await tx
       .update(profesionales)
       .set({ pinFirmaHash: null, pinFirmaActualizadoEn: null, pinFirmaIntentosFallidos: 0, pinFirmaBloqueadoHasta: null })
       .where(eq(profesionales.usuarioId, profesionalId))
       .returning({ id: profesionales.usuarioId });
-    if (!fila) throw new Error('El profesional no existe.');
-    await auditar(tx, { ...contexto, usuarioId: administrador.id, accion: 'firma.pin_restablecido', entidad: 'profesional', entidadId: profesionalId });
+    if (!fila) return { ok: false, errores: ['Ese usuario no está cargado como profesional: no tiene PIN de firma.'] } as const;
+    await auditar(tx, {
+      ...contexto,
+      usuarioId: administrador.id,
+      accion: 'firma.pin_restablecido',
+      entidad: 'profesional',
+      entidadId: profesionalId,
+      detalle: { consultorioId: administrador.consultorio.id },
+    });
+    return { ok: true, mensaje: 'PIN de firma restablecido. Hasta que cree uno nuevo en "Mi cuenta" → "PIN de firma", no va a poder firmar.' } as const;
   });
 }

@@ -14,6 +14,7 @@ import {
 } from '../../db/schema';
 import type { BaseDeDatos } from '../../db/tipos';
 import { normalizarEmail } from '../../domain/acceso/sesiones';
+import { bloqueadoHasta as pinBloqueadoHasta } from '../../domain/firma/pin';
 import { puede } from '../../domain/permisos/permisos';
 import { ESPECIALIDADES, ROLES, type Especialidad, type Rol } from '../../domain/permisos/roles';
 import { ErrorDePermiso } from '../errores';
@@ -57,6 +58,9 @@ function exigirPermiso(admin: UsuarioSesion): void {
 
 export type EstadoDeAcceso = 'activo' | 'falta_configurar' | 'desactivado';
 
+/** PIN de firma de un profesional (null si no está cargado como profesional). */
+export type EstadoDelPin = 'sin_crear' | 'creado' | 'bloqueado';
+
 export interface UsuarioAdministrado {
   id: string;
   nombre: string;
@@ -70,6 +74,7 @@ export interface UsuarioAdministrado {
   tieneVerificacion: boolean;
   enlaceVenceEn: Date | null;
   ultimoIngresoEn: Date | null;
+  pinDeFirma: EstadoDelPin | null;
 }
 
 /** Personas del consultorio de la sesión, con el estado de su acceso. */
@@ -87,6 +92,9 @@ export async function listarUsuariosDelConsultorio(db: BaseDeDatos, admin: Usuar
       claveHash: usuarios.claveHash,
       totpConfirmadoEn: usuarios.totpConfirmadoEn,
       matricula: profesionales.matricula,
+      pinFirmaHash: profesionales.pinFirmaHash,
+      pinIntentosFallidos: profesionales.pinFirmaIntentosFallidos,
+      pinBloqueadoHasta: profesionales.pinFirmaBloqueadoHasta,
     })
     .from(consultorioMiembros)
     .innerJoin(usuarios, eq(usuarios.id, consultorioMiembros.usuarioId))
@@ -125,6 +133,13 @@ export async function listarUsuariosDelConsultorio(db: BaseDeDatos, admin: Usuar
       tieneVerificacion,
       enlaceVenceEn: enlace?.venceEn ?? null,
       ultimoIngresoEn: ingresos.find((i) => i.usuarioId === f.id)?.ultimo ?? null,
+      pinDeFirma: !f.matricula
+        ? null
+        : !f.pinFirmaHash
+          ? 'sin_crear'
+          : pinBloqueadoHasta({ intentosFallidos: f.pinIntentosFallidos ?? 0, bloqueadoHasta: f.pinBloqueadoHasta }, ahora)
+            ? 'bloqueado'
+            : 'creado',
     };
   });
 }
@@ -145,7 +160,7 @@ export async function fichaDeUsuario(db: BaseDeDatos, admin: UsuarioSesion, usua
     .select({ accion: auditoriaAccesos.accion, ocurridoEn: auditoriaAccesos.ocurridoEn, nombre: usuarios.nombre, apellido: usuarios.apellido })
     .from(auditoriaAccesos)
     .innerJoin(usuarios, eq(usuarios.id, auditoriaAccesos.usuarioId))
-    .where(and(eq(auditoriaAccesos.entidad, 'usuario'), eq(auditoriaAccesos.entidadId, usuarioId)))
+    .where(and(inArray(auditoriaAccesos.entidad, ['usuario', 'profesional']), eq(auditoriaAccesos.entidadId, usuarioId)))
     .orderBy(desc(auditoriaAccesos.ocurridoEn), desc(auditoriaAccesos.id))
     .limit(15);
   return { ...usuario, movimientos: movimientos.map((m) => ({ accion: m.accion, ocurridoEn: m.ocurridoEn, quien: `${m.nombre} ${m.apellido}` })) };
@@ -202,7 +217,8 @@ export async function crearUsuario(db: BaseDeDatos, admin: UsuarioSesion, entrad
   });
 }
 
-async function exigirMiembro(db: BaseDeDatos, admin: UsuarioSesion, usuarioId: string): Promise<{ activo: boolean; cuentaActiva: boolean }> {
+/** Que la persona sea de este consultorio (aunque esté desactivada); si no, ErrorDePermiso. */
+export async function exigirMiembro(db: BaseDeDatos, admin: UsuarioSesion, usuarioId: string): Promise<{ activo: boolean; cuentaActiva: boolean }> {
   const [miembro] = esUuid(usuarioId)
     ? await db
         .select({ activo: consultorioMiembros.activo, cuentaActiva: usuarios.activo })

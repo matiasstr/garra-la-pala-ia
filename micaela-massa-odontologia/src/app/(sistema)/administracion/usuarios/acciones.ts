@@ -18,6 +18,7 @@ import {
 } from '@/server/acceso/administracion';
 import { rutaDeEnlace, type EnlaceCreado } from '@/server/acceso/enlaces';
 import { ErrorDePermiso } from '@/server/errores';
+import { restablecerPinDeFirma } from '@/server/hc/pin';
 import { datosDelPedido, urlPublica, usuarioActual } from '@/server/sesion';
 
 export interface EnlaceVisible {
@@ -101,6 +102,7 @@ const ACCIONES = {
     ),
   enlace_nuevo: async (usuarioId: string) =>
     deBlanqueo(await generarEnlaceNuevo(await baseDeDatos(), await usuarioActual(), usuarioId, await datosDelPedido()), usuarioId, 'Enlace nuevo generado. El anterior ya no sirve.'),
+  restablecer_pin: async (usuarioId: string) => deCambio(await restablecerPinDeFirma(await baseDeDatos(), await usuarioActual(), usuarioId, await datosDelPedido()), usuarioId),
 } as const;
 
 export type AccionSobreUsuario = keyof typeof ACCIONES;

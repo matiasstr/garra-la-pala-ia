@@ -28,6 +28,17 @@ export const NOMBRE_MOVIMIENTO: Record<string, string> = {
   'cuenta.configurar_verificacion': 'Configuró la verificación en dos pasos',
   'cuenta.nuevos_codigos_de_recuperacion': 'Generó códigos de recuperación nuevos',
   'sesion.cerrar_otras': 'Cerró sus otras sesiones',
+  'firma.pin_creado': 'Creó su PIN de firma',
+  'firma.pin_cambiado': 'Cambió su PIN de firma',
+  'firma.pin_incorrecto': 'Escribió mal su PIN de firma',
+  'firma.pin_bloqueado': 'PIN de firma bloqueado por intentos fallidos',
+  'firma.pin_restablecido': 'PIN de firma restablecido',
+};
+
+export const ESTADO_PIN: Record<'sin_crear' | 'creado' | 'bloqueado', string> = {
+  sin_crear: 'todavía no lo creó',
+  creado: 'creado',
+  bloqueado: 'bloqueado por intentos fallidos',
 };
 
 export const nombresDeEspecialidades = (lista: readonly Especialidad[]) => lista.map((e) => NOMBRE_ESPECIALIDAD[e]).join(', ');

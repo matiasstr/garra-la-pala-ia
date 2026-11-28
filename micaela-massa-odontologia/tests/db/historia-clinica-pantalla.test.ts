@@ -7,6 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import * as schema from '../../src/db/schema';
 import { sembrarDatosDePrueba } from '../../src/db/semilla';
 import { almacenLocal } from '../../src/server/archivos';
+import { crearPrimerAdministrador, fichaDeUsuario } from '../../src/server/acceso/administracion';
 import { ErrorDePermiso } from '../../src/server/errores';
 import { TAMANIO_MAXIMO_ADJUNTO, leerAdjuntoClinico, subirAdjuntoClinico } from '../../src/server/hc/adjuntos';
 import {
@@ -98,13 +99,33 @@ describe('PIN de firma', () => {
     expect(await auditadas('firma.pin_bloqueado')).toEqual([expect.objectContaining({ usuarioId: datos.otra.id, ip: contexto.ip })]);
   });
 
-  it('solo la administración lo restablece', async () => {
-    await expect(restablecerPinDeFirma(base.db, datos.otra, datos.mica.id)).rejects.toBeInstanceOf(ErrorDePermiso);
-    const soloAdmin = { ...datos.mica, roles: ['administrador'] as const };
-    await guardarPinDeFirma(base.db, datos.mica, { actual: PIN, nuevo: '3691', repeticion: '3691' });
-    await restablecerPinDeFirma(base.db, soloAdmin, datos.mica.id);
-    expect((await estadoPinDeFirma(base.db, datos.mica)).tienePin).toBe(false);
-    expect(await guardarPinDeFirma(base.db, datos.mica, { nuevo: PIN, repeticion: PIN })).toEqual({ errores: [] });
+  it('solo la administración del consultorio lo restablece (nunca el propio), y queda auditado', async () => {
+    const sesionDe = async (id: string) => (await cargarUsuario(base.db, id))!;
+    const [admin, profesional, secretaria] = [await sesionDe(datos.mica.id), await sesionDe(datos.otra.id), await sesionDe(datos.secretaria.id)];
+    await expect(restablecerPinDeFirma(base.db, profesional, datos.mica.id)).rejects.toBeInstanceOf(ErrorDePermiso);
+    await expect(restablecerPinDeFirma(base.db, secretaria, datos.otra.id)).rejects.toBeInstanceOf(ErrorDePermiso);
+    // El propio no: con la sesión de la administradora abierta, cualquiera podría firmar a su nombre.
+    expect(await restablecerPinDeFirma(base.db, admin, datos.mica.id)).toMatchObject({ ok: false });
+    expect((await estadoPinDeFirma(base.db, datos.mica)).tienePin).toBe(true);
+    // Quien no es profesional no tiene PIN.
+    expect(await restablecerPinDeFirma(base.db, admin, datos.secretaria.id)).toMatchObject({ ok: false });
+    // La administración de otro consultorio no toca a las profesionales de este.
+    const otro = await crearPrimerAdministrador(base.db, { email: 'duena@otro-consultorio.test', nombre: 'Dueña', apellido: 'Ajena', consultorio: 'Otro consultorio' });
+    if (otro.estado !== 'creado') throw new Error(JSON.stringify(otro));
+    const ajena = (await cargarUsuario(base.db, otro.usuarioId))!;
+    await expect(restablecerPinDeFirma(base.db, ajena, datos.otra.id)).rejects.toBeInstanceOf(ErrorDePermiso);
+    expect((await estadoPinDeFirma(base.db, datos.otra)).tienePin).toBe(true);
+
+    expect(await restablecerPinDeFirma(base.db, admin, datos.otra.id, contexto)).toMatchObject({ ok: true });
+    expect((await estadoPinDeFirma(base.db, datos.otra)).tienePin).toBe(false);
+    expect(await comprobarPinDeFirma(base.db, datos.otra, PIN_OTRA)).toMatchObject({ ok: false, errores: [expect.stringContaining('Todavía no creaste')] });
+    expect(await auditadas('firma.pin_restablecido')).toEqual([expect.objectContaining({ usuarioId: datos.mica.id, entidad: 'profesional', entidadId: datos.otra.id, ip: contexto.ip })]);
+    const ficha = await fichaDeUsuario(base.db, admin, datos.otra.id);
+    expect(ficha).toMatchObject({ pinDeFirma: 'sin_crear' });
+    expect(ficha?.movimientos.map((m) => m.accion)).toContain('firma.pin_restablecido');
+    // Crea uno nuevo sin el anterior.
+    expect(await guardarPinDeFirma(base.db, datos.otra, { nuevo: PIN_OTRA, repeticion: PIN_OTRA })).toEqual({ errores: [] });
+    expect((await fichaDeUsuario(base.db, admin, datos.otra.id))?.pinDeFirma).toBe('creado');
   });
 });
 

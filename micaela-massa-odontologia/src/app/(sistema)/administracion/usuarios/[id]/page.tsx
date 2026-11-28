@@ -9,7 +9,7 @@ import { usuarioActual } from '@/server/sesion';
 import { actualizarUsuarioAccion } from '../acciones';
 import { AccionUsuario } from '../AccionUsuario';
 import { FormularioUsuario } from '../FormularioUsuario';
-import { ESTADO_ACCESO, NOMBRE_MOVIMIENTO, NOMBRE_ROL, cuando, nombresDeEspecialidades } from '../formato';
+import { ESTADO_ACCESO, ESTADO_PIN, NOMBRE_MOVIMIENTO, NOMBRE_ROL, cuando, nombresDeEspecialidades } from '../formato';
 
 export const metadata: Metadata = { title: 'Usuario · Micaela Massa Odontología' };
 
@@ -58,6 +58,7 @@ export default async function PaginaUsuario({ params }: { params: Promise<{ id: 
             )}
             <li>Contraseña: {usuario.tieneClave ? 'elegida' : 'todavía no la eligió'}</li>
             <li>Verificación en dos pasos: {usuario.tieneVerificacion ? 'configurada' : 'sin configurar'}</li>
+            {usuario.pinDeFirma && <li>PIN de firma: {ESTADO_PIN[usuario.pinDeFirma]}</li>}
             {usuario.enlaceVenceEn && <li>Tiene un enlace pendiente que vence el {cuando(usuario.enlaceVenceEn).toLowerCase()}.</li>}
             <li>{usuario.ultimoIngresoEn ? `Último ingreso: ${cuando(usuario.ultimoIngresoEn).toLowerCase()}` : 'Nunca ingresó.'}</li>
           </ul>
@@ -95,6 +96,15 @@ export default async function PaginaUsuario({ params }: { params: Promise<{ id: 
                   accion="blanquear_verificacion"
                   texto="Blanquear la verificación en dos pasos"
                   confirmacion={`Para cuando ${usuario.nombre} perdió o cambió el celular. Su app y sus códigos de recuperación dejan de servir y se cierran sus sesiones. Con el enlace y su contraseña configura la app de nuevo.`}
+                />
+              )}
+              {usuario.pinDeFirma && usuario.pinDeFirma !== 'sin_crear' && (
+                <AccionUsuario
+                  usuarioId={usuario.id}
+                  nombre={usuario.nombre}
+                  accion="restablecer_pin"
+                  texto="Restablecer PIN de firma"
+                  confirmacion={`Para cuando ${usuario.nombre} se olvidó su PIN de firma o lo tiene bloqueado. Su PIN deja de servir y, hasta que cree uno nuevo en "Mi cuenta" → "PIN de firma", no puede firmar. Lo que ya firmó no cambia. Nadie más conoce ni elige su PIN nuevo.`}
                 />
               )}
               <AccionUsuario
