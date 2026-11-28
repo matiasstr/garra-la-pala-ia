@@ -157,6 +157,22 @@ describe('inalterabilidad en la base de datos', () => {
     expect(await verificarHistoriaClinica(base.db, hcId)).toMatchObject({ valida: false, secuencia: 2 });
   });
 
+  it('detecta que se cambió con qué especialidad o en qué turno se firmó (hash versión 2)', async () => {
+    const [paciente] = await base.db
+      .insert(schema.pacientes)
+      .values({ numeroDocumento: '41999888', nombre: 'Rosa', apellido: 'Vega', fechaNacimiento: '1990-01-01', creadoPor: datos.secretaria.id })
+      .returning();
+    const otraHc = (await obtenerOCrearHistoriaClinica(base.db, paciente!.id)).id;
+    await firmarRegistro(base.db, datos.mica, { historiaClinicaId: otraHc, tipo: 'evolucion', contenido: { texto: 'Endodoncia 46' }, especialidad: 'endodoncia' });
+    expect(await verificarHistoriaClinica(base.db, otraHc)).toEqual({ valida: true });
+    await base.cliente.exec(`
+      alter table registros_clinicos disable trigger registros_clinicos_inalterables;
+      update registros_clinicos set especialidad = 'odontologia_general' where historia_clinica_id = '${otraHc}';
+      alter table registros_clinicos enable trigger registros_clinicos_inalterables;
+    `);
+    expect(await verificarHistoriaClinica(base.db, otraHc)).toMatchObject({ valida: false, secuencia: 1 });
+  });
+
   it('rechaza piezas que no existen en notación FDI', async () => {
     const [registro] = await base.db.select().from(schema.registrosClinicos).where(eq(schema.registrosClinicos.secuencia, 1));
     await expect(

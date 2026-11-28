@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { HASH_GENESIS, calcularHashRegistro, canonicalizar, verificarCadena, type RegistroEncadenado } from './encadenamiento';
+import { HASH_GENESIS, VERSION_FIRMA, calcularHashRegistro, canonicalizar, verificarCadena, type RegistroEncadenado } from './encadenamiento';
 
 describe('canonicalizar', () => {
   it('ordena las claves para que el hash no dependa del orden', () => {
@@ -29,6 +29,8 @@ function cadena(contenidos: unknown[]): RegistroEncadenado[] {
       autorId: 'prof-1',
       firmadoEn: new Date(Date.UTC(2026, 10, 17, 12, i)),
       hashAnterior,
+      especialidad: 'endodoncia',
+      turnoId: `turno-${i + 1}`,
     };
     const hash = calcularHashRegistro(datos);
     registros.push({ ...datos, hash });
@@ -52,6 +54,21 @@ describe('verificarCadena', () => {
 
   it('detecta un registro borrado', () => {
     expect(verificarCadena(registros.filter((r) => r.secuencia !== 2))).toMatchObject({ valida: false, secuencia: 2 });
+  });
+
+  it('detecta un cambio de turno o de especialidad (versión 2)', () => {
+    expect(VERSION_FIRMA).toBe(2);
+    const otroTurno = registros.map((r) => (r.secuencia === 2 ? { ...r, turnoId: 'turno-de-otro-dia' } : r));
+    expect(verificarCadena(otroTurno)).toMatchObject({ valida: false, secuencia: 2 });
+    const sinTurno = registros.map((r) => (r.secuencia === 2 ? { ...r, turnoId: null } : r));
+    expect(verificarCadena(sinTurno)).toMatchObject({ valida: false, secuencia: 2 });
+    const otraEspecialidad = registros.map((r) => (r.secuencia === 3 ? { ...r, especialidad: 'odontologia_general' } : r));
+    expect(verificarCadena(otraEspecialidad)).toMatchObject({ valida: false, secuencia: 3 });
+  });
+
+  it('sin turno ni especialidad, null y ausente firman igual (una fila de la base trae null)', () => {
+    const datos = { historiaClinicaId: 'hc-1', secuencia: 1, tipo: 'evolucion', contenido: { texto: 'x' }, autorId: 'p', firmadoEn: new Date(0), hashAnterior: HASH_GENESIS };
+    expect(calcularHashRegistro({ ...datos, turnoId: null, especialidad: null })).toBe(calcularHashRegistro(datos));
   });
 
   it('detecta un cambio de autor o de fecha', () => {

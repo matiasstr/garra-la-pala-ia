@@ -72,7 +72,7 @@ Para volver a los datos de prueba del día:
 npm run db:reset
 ```
 
-También hace falta después de actualizar, si la app no arranca por un cambio en la base. En particular, las bases de desarrollo creadas antes de la marca de base de prueba (el sistema avisa que "se niega a usar esta base") se arreglan así.
+También hace falta después de actualizar, si la app no arranca por un cambio en la base. En particular, las bases de desarrollo creadas antes de la marca de base de prueba (el sistema avisa que "se niega a usar esta base") o con evoluciones firmadas con la versión 1 del hash (la historia clínica avisa que la integridad no verifica) se arreglan así.
 
 #### Usuarios de prueba
 

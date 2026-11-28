@@ -132,11 +132,14 @@ export async function firmarRegistro(
       firmadoEn: ahora,
       hashAnterior: ultimo?.hash ?? HASH_GENESIS,
       enmiendaDe: nuevo.enmiendaDe ?? null,
+      // También firmados (versión 2): con qué especialidad y en qué turno.
+      especialidad: nuevo.especialidad ?? null,
+      turnoId: nuevo.turnoId ?? null,
     };
 
     const [registro] = await tx
       .insert(registrosClinicos)
-      .values({ ...datos, hash: calcularHashRegistro(datos), especialidad: nuevo.especialidad ?? null, turnoId: nuevo.turnoId ?? null })
+      .values({ ...datos, hash: calcularHashRegistro(datos) })
       .returning();
     if (!registro) throw new Error('No se pudo guardar el registro clínico.');
 

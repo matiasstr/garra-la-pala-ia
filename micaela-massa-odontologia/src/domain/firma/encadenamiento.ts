@@ -53,7 +53,19 @@ export interface DatosFirmables {
   firmadoEn: Date;
   hashAnterior: string;
   enmiendaDe?: string | null;
+  /** Especialidad con la que se firmó (por ejemplo, endodoncia). */
+  especialidad?: string | null;
+  /** Turno en el que se atendió: vincula la evolución con la visita. */
+  turnoId?: string | null;
 }
+
+/**
+ * Versión del contenido firmable. La 2 agrega `especialidad` y `turnoId`: en
+ * la 1 se podía cambiar en la base con qué turno o especialidad se firmó un
+ * registro sin que la cadena lo detectara. No hay datos reales firmados con
+ * la 1; las bases de desarrollo viejas se arreglan con `npm run db:reset`.
+ */
+export const VERSION_FIRMA = 2;
 
 export interface RegistroEncadenado extends DatosFirmables {
   hash: string;
@@ -63,7 +75,7 @@ export function calcularHashRegistro(datos: DatosFirmables): string {
   // Campos explícitos: un objeto con propiedades extra (por ejemplo, una fila
   // de la base con su `hash`) produce el mismo resultado.
   const firmable = {
-    version: 1,
+    version: VERSION_FIRMA,
     historiaClinicaId: datos.historiaClinicaId,
     secuencia: datos.secuencia,
     tipo: datos.tipo,
@@ -72,6 +84,8 @@ export function calcularHashRegistro(datos: DatosFirmables): string {
     firmadoEn: datos.firmadoEn,
     hashAnterior: datos.hashAnterior,
     enmiendaDe: datos.enmiendaDe ?? null,
+    especialidad: datos.especialidad ?? null,
+    turnoId: datos.turnoId ?? null,
   };
   return createHash('sha256').update(canonicalizar(firmable), 'utf8').digest('hex');
 }
