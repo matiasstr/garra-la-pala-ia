@@ -120,6 +120,8 @@ describe('PIN de firma', () => {
     expect((await estadoPinDeFirma(base.db, datos.otra)).tienePin).toBe(false);
     expect(await comprobarPinDeFirma(base.db, datos.otra, PIN_OTRA)).toMatchObject({ ok: false, errores: [expect.stringContaining('Todavía no creaste')] });
     expect(await auditadas('firma.pin_restablecido')).toEqual([expect.objectContaining({ usuarioId: datos.mica.id, entidad: 'profesional', entidadId: datos.otra.id, ip: contexto.ip })]);
+    // Otra vez, sin PIN: no hay nada que restablecer.
+    expect(await restablecerPinDeFirma(base.db, admin, datos.otra.id, contexto)).toEqual({ ok: false, errores: [expect.stringContaining('nada que restablecer')] });
     const ficha = await fichaDeUsuario(base.db, admin, datos.otra.id);
     expect(ficha).toMatchObject({ pinDeFirma: 'sin_crear' });
     expect(ficha?.movimientos.map((m) => m.accion)).toContain('firma.pin_restablecido');

@@ -160,12 +160,13 @@ export async function restablecerPinDeFirma(
   if (!miembro.activo || !miembro.cuentaActiva) return { ok: false, errores: ['El usuario está desactivado: reactivalo primero.'] };
 
   return db.transaction(async (tx) => {
-    const [fila] = await tx
+    const [fila] = await tx.select({ pin: profesionales.pinFirmaHash }).from(profesionales).where(eq(profesionales.usuarioId, profesionalId)).for('update');
+    if (!fila) return { ok: false, errores: ['Ese usuario no está cargado como profesional: no tiene PIN de firma.'] } as const;
+    if (!fila.pin) return { ok: false, errores: ['Todavía no creó su PIN de firma: no hay nada que restablecer.'] } as const;
+    await tx
       .update(profesionales)
       .set({ pinFirmaHash: null, pinFirmaActualizadoEn: null, pinFirmaIntentosFallidos: 0, pinFirmaBloqueadoHasta: null })
-      .where(eq(profesionales.usuarioId, profesionalId))
-      .returning({ id: profesionales.usuarioId });
-    if (!fila) return { ok: false, errores: ['Ese usuario no está cargado como profesional: no tiene PIN de firma.'] } as const;
+      .where(eq(profesionales.usuarioId, profesionalId));
     await auditar(tx, {
       ...contexto,
       usuarioId: administrador.id,

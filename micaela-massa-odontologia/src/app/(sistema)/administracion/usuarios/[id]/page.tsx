@@ -98,7 +98,8 @@ export default async function PaginaUsuario({ params }: { params: Promise<{ id: 
                   confirmacion={`Para cuando ${usuario.nombre} perdió o cambió el celular. Su app y sus códigos de recuperación dejan de servir y se cierran sus sesiones. Con el enlace y su contraseña configura la app de nuevo.`}
                 />
               )}
-              {usuario.pinDeFirma && usuario.pinDeFirma !== 'sin_crear' && (
+              {/* Para toda profesional, aunque todavía no tenga PIN: si el botón desapareciera al restablecerlo, se perdería el aviso. */}
+              {usuario.pinDeFirma && (
                 <AccionUsuario
                   usuarioId={usuario.id}
                   nombre={usuario.nombre}
