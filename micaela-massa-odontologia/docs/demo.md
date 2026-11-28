@@ -152,10 +152,10 @@ Esta demo **no** es la instalación del consultorio. Para usar el sistema con pa
   DATABASE_URL=postgres://usuario:clave@localhost:5432/mm_demo MODO_DESARROLLO=1 DEMO_CLAVE=una-clave DEMO_PERMITE_REINICIO=1 npm start
   ```
 
-- **Tests con PostgreSQL real** (varias instancias a la vez; vacía la base indicada):
+- **Tests con PostgreSQL real** (varias instancias a la vez y pedidos simultáneos: bloqueo de intentos, sillón, reprogramar y pendientes). Vacían la base indicada y crean otra con el mismo nombre terminado en `_concurrencia`:
 
   ```bash
-  PRUEBA_POSTGRES_URL=postgres://usuario:clave@localhost:5432/base_descartable npx vitest run tests/db/postgres-demo.test.ts
+  PRUEBA_POSTGRES_URL=postgres://usuario:clave@localhost:5432/base_descartable npx vitest run tests/db/postgres-demo.test.ts tests/db/concurrencia-postgres.test.ts
   ```
 
 ## Fuentes

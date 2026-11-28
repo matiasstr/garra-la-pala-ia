@@ -48,41 +48,61 @@ async function superposiciones(tx: Transaccion, datos: { profesionalId: string; 
 
 export type ResultadoTurno = { ok: true; turnoId: string } | { ok: false; errores: string[] };
 
-export async function crearTurno(db: BaseDeDatos, usuario: UsuarioConRoles, entrada: EntradaTurno, opciones: { reprogramaA?: string } = {}): Promise<ResultadoTurno> {
-  if (!puede(usuario, 'turnos.gestionar')) throw new ErrorDePermiso('No tenés permiso para dar turnos.');
-  const validacion = esquemaTurno.safeParse(entrada);
-  if (!validacion.success) return { ok: false, errores: [...new Set(validacion.error.issues.map((i) => i.message))] };
-  const datos = validacion.data;
+type DatosTurno = z.output<typeof esquemaTurno>;
+
+const erroresDe = (error: z.ZodError) => [...new Set(error.issues.map((i) => i.message))];
+
+/**
+ * Guarda un turno nuevo dentro de una transacción ya abierta (sin recalcular
+ * pendientes: eso lo hace quien llama, después de confirmar).
+ *
+ * Antes de mirar superposiciones bloquea la fila del profesional y, si hay,
+ * la del sillón, siempre en ese orden: dos secretarias que dan a la vez el
+ * mismo horario (del mismo profesional, o del mismo sillón con profesionales
+ * distintos) se atienden de a una, y la segunda ve el turno de la primera.
+ * `excluir` deja afuera de la comparación un turno que se está por liberar
+ * (el original de una reprogramación).
+ */
+async function insertarTurno(tx: Transaccion, usuario: UsuarioConRoles, datos: DatosTurno, opciones: { reprogramaA?: string; excluir?: string } = {}): Promise<ResultadoTurno> {
   const inicio = fechaHoraArgentina(datos.fecha, datos.hora);
   const fin = new Date(inicio.getTime() + datos.duracionMinutos * 60_000);
 
-  const resultado = await db.transaction(async (tx): Promise<ResultadoTurno> => {
-    // Serializa los turnos del mismo profesional para que dos secretarias no den el mismo horario.
-    const [profesional] = await tx.select().from(profesionales).where(eq(profesionales.usuarioId, datos.profesionalId)).for('update');
-    if (!profesional) return { ok: false, errores: ['El profesional no existe.'] };
-    const [paciente] = await tx.select({ activo: pacientes.activo }).from(pacientes).where(eq(pacientes.id, datos.pacienteId));
-    if (!paciente?.activo) return { ok: false, errores: ['El paciente no existe o está dado de baja.'] };
+  const [profesional] = await tx.select({ id: profesionales.usuarioId }).from(profesionales).where(eq(profesionales.usuarioId, datos.profesionalId)).for('update');
+  if (!profesional) return { ok: false, errores: ['El profesional no existe.'] };
+  if (datos.sillonId) {
+    const [sillon] = await tx.select({ id: sillones.id }).from(sillones).where(eq(sillones.id, datos.sillonId)).for('update');
+    if (!sillon) return { ok: false, errores: ['El sillón no existe.'] };
+  }
+  const [paciente] = await tx.select({ activo: pacientes.activo }).from(pacientes).where(eq(pacientes.id, datos.pacienteId));
+  if (!paciente?.activo) return { ok: false, errores: ['El paciente no existe o está dado de baja.'] };
 
-    const errores = await superposiciones(tx, { ...datos, inicio, fin });
-    if (errores.length) return { ok: false, errores };
+  const errores = await superposiciones(tx, { ...datos, inicio, fin, excluir: opciones.excluir });
+  if (errores.length) return { ok: false, errores };
 
-    const [turno] = await tx
-      .insert(turnos)
-      .values({
-        pacienteId: datos.pacienteId,
-        profesionalId: datos.profesionalId,
-        sillonId: datos.sillonId,
-        inicio,
-        fin,
-        motivo: datos.motivo,
-        reprogramaA: opciones.reprogramaA ?? null,
-        creadoPor: usuario.id,
-      })
-      .returning({ id: turnos.id });
-    if (!turno) throw new Error('No se pudo guardar el turno.');
-    await registrarEvento(tx, turno.id, usuario.id, null, 'reservado', opciones.reprogramaA ? 'Reprogramación' : null);
-    return { ok: true, turnoId: turno.id };
-  });
+  const [turno] = await tx
+    .insert(turnos)
+    .values({
+      pacienteId: datos.pacienteId,
+      profesionalId: datos.profesionalId,
+      sillonId: datos.sillonId,
+      inicio,
+      fin,
+      motivo: datos.motivo,
+      reprogramaA: opciones.reprogramaA ?? null,
+      creadoPor: usuario.id,
+    })
+    .returning({ id: turnos.id });
+  if (!turno) throw new Error('No se pudo guardar el turno.');
+  await registrarEvento(tx, turno.id, usuario.id, null, 'reservado', opciones.reprogramaA ? 'Reprogramación' : null);
+  return { ok: true, turnoId: turno.id };
+}
+
+export async function crearTurno(db: BaseDeDatos, usuario: UsuarioConRoles, entrada: EntradaTurno): Promise<ResultadoTurno> {
+  if (!puede(usuario, 'turnos.gestionar')) throw new ErrorDePermiso('No tenés permiso para dar turnos.');
+  const validacion = esquemaTurno.safeParse(entrada);
+  if (!validacion.success) return { ok: false, errores: erroresDe(validacion.error) };
+  const datos = validacion.data;
+  const resultado = await db.transaction((tx) => insertarTurno(tx, usuario, datos));
   // Si sacó turno, sus pendientes se resuelven solos.
   if (resultado.ok) await sincronizarSinInterrumpir(db, datos.pacienteId, usuario.id);
   return resultado;
@@ -104,7 +124,13 @@ export async function cambiarEstadoTurno(db: BaseDeDatos, usuario: UsuarioConRol
   return { ok: true, turnoId };
 }
 
-/** Da un turno nuevo y marca el anterior como reprogramado, dejando el vínculo entre los dos. */
+/**
+ * Da un turno nuevo y marca el anterior como reprogramado, dejando el vínculo
+ * entre los dos. Todo en una transacción que empieza bloqueando el turno
+ * original: si dos personas lo reprograman a la vez, la segunda lo encuentra
+ * ya reprogramado y no deja un turno de más. El horario del turno original
+ * no cuenta como ocupado (se libera en la misma operación).
+ */
 export async function reprogramarTurno(
   db: BaseDeDatos,
   usuario: UsuarioConRoles,
@@ -112,14 +138,14 @@ export async function reprogramarTurno(
   nuevo: Pick<EntradaTurno, 'fecha' | 'hora'> & Partial<Pick<EntradaTurno, 'profesionalId' | 'sillonId' | 'duracionMinutos'>>,
 ): Promise<ResultadoTurno> {
   if (!puede(usuario, 'turnos.gestionar')) throw new ErrorDePermiso('No tenés permiso para modificar turnos.');
-  const [anterior] = await db.select().from(turnos).where(eq(turnos.id, turnoId));
-  if (!anterior) return { ok: false, errores: ['El turno no existe.'] };
-  if (!puedeCambiarEstado(anterior.estado, 'reprogramado')) return { ok: false, errores: ['Este turno ya no se puede reprogramar.'] };
+  if (!z.uuid().safeParse(turnoId).success) return { ok: false, errores: ['El turno no existe.'] };
 
-  const creado = await crearTurno(
-    db,
-    usuario,
-    {
+  const resultado = await db.transaction(async (tx): Promise<(ResultadoTurno & { ok: true; pacienteId: string }) | (ResultadoTurno & { ok: false })> => {
+    const [anterior] = await tx.select().from(turnos).where(eq(turnos.id, turnoId)).for('update');
+    if (!anterior) return { ok: false, errores: ['El turno no existe.'] };
+    if (!puedeCambiarEstado(anterior.estado, 'reprogramado')) return { ok: false, errores: ['Este turno ya no se puede reprogramar.'] };
+
+    const validacion = esquemaTurno.safeParse({
       pacienteId: anterior.pacienteId,
       profesionalId: nuevo.profesionalId ?? anterior.profesionalId,
       sillonId: nuevo.sillonId === undefined ? anterior.sillonId : nuevo.sillonId,
@@ -127,12 +153,19 @@ export async function reprogramarTurno(
       hora: nuevo.hora,
       duracionMinutos: nuevo.duracionMinutos ?? Math.round((anterior.fin.getTime() - anterior.inicio.getTime()) / 60_000),
       motivo: anterior.motivo,
-    },
-    { reprogramaA: anterior.id },
-  );
-  if (!creado.ok) return creado;
-  const cambio = await cambiarEstadoTurno(db, usuario, anterior.id, 'reprogramado', 'Se dio un turno nuevo');
-  return cambio.ok ? creado : cambio;
+    });
+    if (!validacion.success) return { ok: false, errores: erroresDe(validacion.error) };
+    const creado = await insertarTurno(tx, usuario, validacion.data, { reprogramaA: anterior.id, excluir: anterior.id });
+    if (!creado.ok) return creado;
+
+    await tx.update(turnos).set({ estado: 'reprogramado' }).where(eq(turnos.id, anterior.id));
+    await registrarEvento(tx, anterior.id, usuario.id, anterior.estado, 'reprogramado', 'Se dio un turno nuevo');
+    return { ok: true, turnoId: creado.turnoId, pacienteId: anterior.pacienteId };
+  });
+  if (!resultado.ok) return resultado;
+  // El turno nuevo resuelve sus pendientes (y el reprogramado deja de contar como ausente).
+  await sincronizarSinInterrumpir(db, resultado.pacienteId, usuario.id);
+  return { ok: true, turnoId: resultado.turnoId };
 }
 
 export interface TurnoAgenda {

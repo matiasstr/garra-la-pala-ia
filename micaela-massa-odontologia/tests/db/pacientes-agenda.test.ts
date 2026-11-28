@@ -157,6 +157,29 @@ describe('agenda', () => {
     expect(anterior?.estado).toBe('reprogramado');
   });
 
+  it('dos personas que reprograman el mismo turno a la vez dejan un solo turno nuevo', async () => {
+    const [martina] = await base.db.select().from(schema.pacientes).where(eq(schema.pacientes.apellido, 'López'));
+    const original = await crearTurno(base.db, secretaria, { pacienteId: martina!.id, profesionalId: mica.id, fecha: '2026-12-21', hora: '08:00', duracionMinutos: 30 });
+    if (!original.ok) throw new Error(original.errores.join());
+    const resultados = await Promise.all([
+      reprogramarTurno(base.db, secretaria, original.turnoId, { fecha: '2026-12-22', hora: '08:00' }),
+      reprogramarTurno(base.db, secretaria, original.turnoId, { fecha: '2026-12-23', hora: '08:00' }),
+    ]);
+    expect(resultados.filter((r) => r.ok)).toHaveLength(1);
+    expect(resultados.find((r) => !r.ok)).toEqual({ ok: false, errores: ['Este turno ya no se puede reprogramar.'] });
+    const nuevos = await base.db.select().from(schema.turnos).where(eq(schema.turnos.reprogramaA, original.turnoId));
+    expect(nuevos).toHaveLength(1);
+    expect((await base.db.select().from(schema.turnos).where(eq(schema.turnos.id, original.turnoId)))[0]?.estado).toBe('reprogramado');
+  });
+
+  it('reprogramar media hora más tarde no choca con el propio turno original', async () => {
+    const [martina] = await base.db.select().from(schema.pacientes).where(eq(schema.pacientes.apellido, 'López'));
+    const original = await crearTurno(base.db, secretaria, { pacienteId: martina!.id, profesionalId: mica.id, fecha: '2026-12-28', hora: '08:00', duracionMinutos: 60 });
+    if (!original.ok) throw new Error(original.errores.join());
+    expect((await reprogramarTurno(base.db, secretaria, original.turnoId, { fecha: '2026-12-28', hora: '08:30' })).ok).toBe(true);
+    expect(await reprogramarTurno(base.db, secretaria, 'no-es-un-turno', { fecha: '2026-12-28', hora: '10:00' })).toEqual({ ok: false, errores: ['El turno no existe.'] });
+  });
+
   it('el administrador ve la agenda pero no da turnos', async () => {
     const soloAdmin = { ...mica, roles: ['administrador' as const] };
     expect((await agendaDelDia(base.db, soloAdmin, HOY)).length).toBeGreaterThan(0);

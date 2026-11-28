@@ -78,8 +78,8 @@ Ya hay consultorios, pertenencia y roles por consultorio, y la sesión lleva el 
 
 - **Búsqueda sin tildes:** `pacientes.nombre_normalizado` y `texto_busqueda` son columnas que calcula la base (no las puede olvidar la aplicación). Un test verifica que la base normalice igual que el código.
 - **Duplicados:** el mismo documento bloquea el alta. Un homónimo o un posible duplicado obliga a confirmar que es otra persona, y eso queda en la auditoría.
-- **Superposiciones:** no se dan dos turnos activos al mismo profesional ni al mismo sillón en el mismo horario. Las altas del mismo profesional se serializan con un bloqueo de fila.
-- **Trazabilidad de turnos:** cada cambio de estado queda en `turno_eventos`, que es de solo agregar. Una reprogramación crea un turno nuevo vinculado al original.
+- **Superposiciones:** no se dan dos turnos activos al mismo profesional ni al mismo sillón en el mismo horario. Antes de mirar el horario, el alta bloquea la fila del profesional y la del sillón, siempre en ese orden (así dos pedidos no se esperan entre sí): dos secretarias que dan a la vez el mismo horario, del mismo profesional o del mismo sillón con profesionales distintos, se atienden de a una.
+- **Trazabilidad de turnos:** cada cambio de estado queda en `turno_eventos`, que es de solo agregar. Una reprogramación crea un turno nuevo vinculado al original, en una sola transacción que empieza bloqueando el original: si dos personas lo reprograman a la vez, la segunda lo encuentra ya reprogramado y no queda un turno de más. El horario del original no cuenta como ocupado (se puede correr media hora). Los pendientes se recalculan después.
 - **Mensajes:** el recordatorio por WhatsApp solo se ofrece si el paciente dio permiso. Se guarda la fecha del permiso y el mensaje no lleva información clínica.
 - **Fotos:** se achican en el navegador (640 px), se valida que sean imágenes por su contenido y se sirven con control de permisos, sin quedar en cachés compartidas.
 
