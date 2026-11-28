@@ -19,6 +19,31 @@ import { comprobarPinDeFirma } from './pin';
  */
 
 export const TAMANIO_MAXIMO_ADJUNTO = 10 * 1024 * 1024;
+/**
+ * En Vercel (la demo online) las funciones no aceptan cuerpos de más de
+ * 4,5 MB: el pedido se corta antes de llegar al sistema. Ahí el máximo es 4 MB.
+ */
+export const TAMANIO_MAXIMO_ADJUNTO_EN_VERCEL = 4 * 1024 * 1024;
+
+export interface LimiteDeAdjunto {
+  bytes: number;
+  /** "10 MB", para los textos de la pantalla. */
+  texto: string;
+  /** Qué se le dice a quien elige un archivo más grande. */
+  mensaje: string;
+}
+
+/** Cuánto puede pesar un adjunto donde corre el sistema (Vercel define `VERCEL`). */
+export function limiteDeAdjunto(variables: Record<string, string | undefined> = process.env): LimiteDeAdjunto {
+  if (variables.VERCEL) {
+    return {
+      bytes: TAMANIO_MAXIMO_ADJUNTO_EN_VERCEL,
+      texto: '4 MB',
+      mensaje: 'El archivo pesa más de 4 MB, el máximo en la demo online (Vercel no acepta archivos más grandes). Probá con uno más liviano o una foto del documento.',
+    };
+  }
+  return { bytes: TAMANIO_MAXIMO_ADJUNTO, texto: '10 MB', mensaje: 'El archivo pesa más de 10 MB.' };
+}
 export const LARGO_MAXIMO_DESCRIPCION = 300;
 
 const sha256De = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -60,8 +85,9 @@ export async function subirAdjuntoClinico(
   const descripcion = entrada.descripcion.trim();
   const pieza = entrada.pieza ?? null;
   const errores: string[] = [];
+  const limite = limiteDeAdjunto();
   if (!bytes.byteLength) errores.push('Elegí un archivo.');
-  else if (bytes.byteLength > TAMANIO_MAXIMO_ADJUNTO) errores.push('El archivo pesa más de 10 MB.');
+  else if (bytes.byteLength > limite.bytes) errores.push(limite.mensaje);
   const tipo = bytes.byteLength ? detectarTipoArchivo(bytes) : null;
   if (bytes.byteLength && !tipo) errores.push('El archivo no es una imagen (JPG, PNG o WebP) ni un PDF.');
   if (!descripcion) errores.push('Escribí qué es el archivo (por ejemplo, "Radiografía periapical").');

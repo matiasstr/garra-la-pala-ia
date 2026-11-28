@@ -3,12 +3,13 @@ import { baseDeDatos } from '@/db/client';
 import { puede, puedeFirmarRegistroClinico } from '@/domain/permisos/permisos';
 import { almacenDelSistema } from '@/server/entorno';
 import { ErrorDePermiso, ErrorDeValidacion } from '@/server/errores';
-import { TAMANIO_MAXIMO_ADJUNTO, subirAdjuntoClinico } from '@/server/hc/adjuntos';
+import { limiteDeAdjunto, subirAdjuntoClinico } from '@/server/hc/adjuntos';
 import { datosDelPedido, usuarioActual } from '@/server/sesion';
 
 /**
  * Sube un adjunto clínico y lo firma. Es una ruta y no una acción de servidor
- * porque las acciones aceptan hasta 1 MB y un PDF puede pesar 10. El archivo
+ * porque las acciones aceptan hasta 1 MB y un PDF puede pesar 10 (4 en Vercel,
+ * ver `limiteDeAdjunto`). El archivo
  * viaja como cuerpo del pedido, tal cual (sin multipart), y los datos en
  * encabezados. Los errores de validación vuelven con estado 200 y `ok: false`
  * (son mensajes para la pantalla); los de permiso, con 403.
@@ -35,7 +36,8 @@ export async function POST(pedido: Request, { params }: { params: Promise<{ id: 
   if (!puede(usuario, 'adjuntos_clinicos.subir') || !puedeFirmarRegistroClinico(usuario)) {
     return respuesta(403, ['Solo un profesional con matrícula puede adjuntar archivos a la historia clínica.']);
   }
-  if (Number(pedido.headers.get('content-length') ?? 0) > TAMANIO_MAXIMO_ADJUNTO) return respuesta(413, ['El archivo pesa más de 10 MB.']);
+  const limite = limiteDeAdjunto();
+  if (Number(pedido.headers.get('content-length') ?? 0) > limite.bytes) return respuesta(413, [limite.mensaje]);
 
   const bytes = new Uint8Array(await pedido.arrayBuffer());
   const declarados = Number(pedido.headers.get('x-adjunto-bytes') ?? '');

@@ -10,6 +10,7 @@ import { calcularOdontograma } from '@/domain/odontograma/estado';
 import { puede, puedeFirmarRegistroClinico } from '@/domain/permisos/permisos';
 import { NOMBRE_ESPECIALIDAD } from '@/domain/permisos/roles';
 import { capitalizar, esFechaValida, fechaDe, formatoFechaCorta, formatoFechaLarga, formatoHora, hoyEnArgentina, rangoDelDia } from '@/lib/fechas';
+import { limiteDeAdjunto } from '@/server/hc/adjuntos';
 import { verHistoriaClinica, type VistaHistoriaClinica } from '@/server/hc/vista';
 import { datosDelPedido, usuarioActual } from '@/server/sesion';
 import type { FirmaDisponible, PacienteParaFirmar } from './DialogoFirma';
@@ -159,7 +160,7 @@ export default async function PaginaHistoriaClinica({ params, searchParams }: Pr
             <details className="hc-subir">
               <summary>Adjuntar radiografía, foto o estudio</summary>
               <div style={{ marginTop: 12 }}>
-                <SubirAdjunto paciente={paraFirmar} firma={firma} />
+                <SubirAdjunto paciente={paraFirmar} firma={firma} limite={limiteDeAdjunto()} />
               </div>
             </details>
           )}

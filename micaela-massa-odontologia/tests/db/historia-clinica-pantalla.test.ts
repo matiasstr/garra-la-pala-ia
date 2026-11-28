@@ -3,13 +3,13 @@ import { mkdtemp, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { and, eq } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import * as schema from '../../src/db/schema';
 import { sembrarDatosDePrueba } from '../../src/db/semilla';
 import { almacenLocal } from '../../src/server/archivos';
 import { crearPrimerAdministrador, fichaDeUsuario } from '../../src/server/acceso/administracion';
 import { ErrorDePermiso } from '../../src/server/errores';
-import { TAMANIO_MAXIMO_ADJUNTO, leerAdjuntoClinico, subirAdjuntoClinico } from '../../src/server/hc/adjuntos';
+import { TAMANIO_MAXIMO_ADJUNTO, TAMANIO_MAXIMO_ADJUNTO_EN_VERCEL, leerAdjuntoClinico, limiteDeAdjunto, subirAdjuntoClinico } from '../../src/server/hc/adjuntos';
 import {
   borradorDeEvolucion,
   descartarBorradorEvolucion,
@@ -303,9 +303,21 @@ describe('adjuntos clínicos', () => {
     const base_ = { pacienteId: datos.paciente.id, nombreOriginal: 'x.pdf', descripcion: 'x', pin: PIN };
     const disfrazado = await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: new TextEncoder().encode('<script>alert(1)</script>') });
     expect(disfrazado).toMatchObject({ ok: false, errores: [expect.stringContaining('ni un PDF')] });
+    expect(limiteDeAdjunto({})).toMatchObject({ bytes: TAMANIO_MAXIMO_ADJUNTO, texto: '10 MB' });
+    expect(limiteDeAdjunto({ VERCEL: '1' })).toMatchObject({ bytes: TAMANIO_MAXIMO_ADJUNTO_EN_VERCEL, texto: '4 MB' });
+    expect(TAMANIO_MAXIMO_ADJUNTO_EN_VERCEL).toBeLessThan(4.5 * 1024 * 1024 - 64 * 1024);
     const grande = new Uint8Array(TAMANIO_MAXIMO_ADJUNTO + 1);
     grande.set(PDF);
     expect(await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: grande })).toMatchObject({ ok: false, errores: [expect.stringContaining('10 MB')] });
+    // En la demo de Vercel el máximo es 4 MB (sus funciones cortan los pedidos de más de 4,5 MB).
+    const medio = new Uint8Array(4 * 1024 * 1024 + 1);
+    medio.set(PDF);
+    vi.stubEnv('VERCEL', '1');
+    try {
+      expect(await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: medio })).toMatchObject({ ok: false, errores: [expect.stringContaining('4 MB, el máximo en la demo online')] });
+    } finally {
+      vi.unstubAllEnvs();
+    }
     expect(await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: PNG, descripcion: ' ' })).toMatchObject({ ok: false });
     expect(await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: PNG, pieza: 19 })).toMatchObject({ ok: false });
     expect(await subirAdjuntoClinico(base.db, almacen, datos.mica, { ...base_, bytes: PDF.slice(0, 10), sha256Declarado: sha(PDF) })).toEqual({

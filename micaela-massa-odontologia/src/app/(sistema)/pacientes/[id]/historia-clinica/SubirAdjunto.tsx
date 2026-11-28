@@ -7,10 +7,16 @@ import { tamanioLegible } from '@/domain/historia-clinica/registros';
 import { TODAS_LAS_PIEZAS } from '@/domain/odontograma/piezas';
 import { DialogoFirma, type FirmaDisponible, type PacienteParaFirmar } from './DialogoFirma';
 
-const TAMANIO_MAXIMO = 10 * 1024 * 1024;
 /** Las imágenes más grandes que esto se achican: alcanza para ver una radiografía con detalle. */
 const LADO_MAXIMO = 2400;
 const PESO_PARA_ACHICAR = 4 * 1024 * 1024;
+
+/** El máximo lo decide el servidor: 10 MB, o 4 MB en la demo online (Vercel). */
+export interface LimiteDeAdjunto {
+  bytes: number;
+  texto: string;
+  mensaje: string;
+}
 const TIPOS_ACEPTADOS = 'image/jpeg,image/png,image/webp,application/pdf';
 const PIEZAS = TODAS_LAS_PIEZAS.toSorted((a, b) => a - b);
 
@@ -23,14 +29,14 @@ interface ArchivoListo {
 }
 
 /** Achica las imágenes grandes en el navegador (también les saca los datos de ubicación de la cámara). */
-async function preparar(archivo: File): Promise<ArchivoListo> {
+async function preparar(archivo: File, pesoParaAchicar: number): Promise<ArchivoListo> {
   let blob: Blob = archivo;
   let nombre = archivo.name;
   let tipo = archivo.type;
   if (archivo.type.startsWith('image/')) {
     const imagen = await createImageBitmap(archivo);
     const escala = Math.min(1, LADO_MAXIMO / Math.max(imagen.width, imagen.height));
-    if (escala < 1 || archivo.size > PESO_PARA_ACHICAR) {
+    if (escala < 1 || archivo.size > pesoParaAchicar) {
       const lienzo = document.createElement('canvas');
       lienzo.width = Math.round(imagen.width * escala);
       lienzo.height = Math.round(imagen.height * escala);
@@ -49,7 +55,7 @@ async function preparar(archivo: File): Promise<ArchivoListo> {
   return { blob, nombre, tipo, pesoOriginal: archivo.size, sha256 };
 }
 
-export function SubirAdjunto({ paciente, firma }: { paciente: PacienteParaFirmar; firma: FirmaDisponible }) {
+export function SubirAdjunto({ paciente, firma, limite }: { paciente: PacienteParaFirmar; firma: FirmaDisponible; limite: LimiteDeAdjunto }) {
   const router = useRouter();
   const entrada = useRef<HTMLInputElement>(null);
   const [archivo, setArchivo] = useState<ArchivoListo | null>(null);
@@ -86,7 +92,7 @@ export function SubirAdjunto({ paciente, firma }: { paciente: PacienteParaFirmar
     <div className="pila">
       <div className="fila-campos">
         <label className="campo" htmlFor={ids.archivo}>
-          <span>Imagen (JPG, PNG, WebP) o PDF, hasta 10 MB</span>
+          <span>Imagen (JPG, PNG, WebP) o PDF, hasta {limite.texto}</span>
           <input
             ref={entrada}
             id={ids.archivo}
@@ -100,8 +106,8 @@ export function SubirAdjunto({ paciente, firma }: { paciente: PacienteParaFirmar
               if (!elegido) return;
               setPreparando(true);
               try {
-                const listo = await preparar(elegido);
-                if (listo.blob.size > TAMANIO_MAXIMO) setMensaje({ error: true, texto: 'El archivo pesa más de 10 MB.' });
+                const listo = await preparar(elegido, Math.min(PESO_PARA_ACHICAR, limite.bytes));
+                if (listo.blob.size > limite.bytes) setMensaje({ error: true, texto: limite.mensaje });
                 else setArchivo(listo);
               } catch {
                 setMensaje({ error: true, texto: 'No se pudo leer el archivo. Probá con otro.' });
